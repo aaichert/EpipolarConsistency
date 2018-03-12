@@ -1,0 +1,18 @@
+get_filename_component(myDir ${CMAKE_CURRENT_LIST_FILE} PATH)
+get_filename_component(rootDir ${myDir} ABSOLUTE)
+
+# set the version of myself
+set(@LIB_NAME_CAPS@_VERSION_MAJOR @VERSION_MAJOR@)
+set(@LIB_NAME_CAPS@_VERSION_MINOR @VERSION_MINOR@)
+set(@LIB_NAME_CAPS@_VERSION_PATCH @VERSION_PATCH@)
+set(@LIB_NAME_CAPS@_VERSION ${@LIB_NAME_CAPS@_VERSION_MAJOR}.${@LIB_NAME_CAPS@_VERSION_MINOR}.${@LIB_NAME_CAPS@_VERSION_PATCH} )
+
+# what is my include directory
+set(@LIB_NAME_CAPS@_INCLUDE_DIRS "${rootDir}/include")
+set(@LIB_NAME_CAPS@_DIR "${rootDir}")
+
+# import the exported targets
+include(${myDir}/cmake/@LIB_NAME@-targets.cmake)
+
+# set the expected library variable
+set(@LIB_NAME_CAPS@_LIBRARIES @LIB_NAME@ )
