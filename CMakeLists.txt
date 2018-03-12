@@ -7,6 +7,7 @@ cmake_minimum_required(VERSION 3.2.2)
 # Pattern Recognition Lab (CS5)
 # Friedrich-Alexander Universität Erlangen-Nürnberg
 ############################################################
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Create a new solution
 project(EpipolarConsistency)
@@ -70,11 +71,6 @@ endif()
 set(EIGEN3_INCLUDE_PATH "/usr/include/eigen3" CACHE PATH "Full path to Eigen3")
 include_directories(${EIGEN3_INCLUDE_PATH})
 
-# Add NLopt optimizers
-#find_package(NLopt REQUIRED)
-set(NLOPT_LIBRARY "/usr/lib/x86_64-linux-gnu/libnlopt.so" CACHE FILEPATH  "Full path to nlopt.lib")
-set(NLOPT_INCLUDE_PATH "/usr/include" CACHE PATH "Directory containing nlopt.h/hpp")
-include_directories(${NLOPT_INCLUDE_PATH})
 
 # Add OpenGL
 find_package(OpenGL REQUIRED)

@@ -599,7 +599,7 @@ void gui(const GetSetInternal::Node& node)
 		{
 			Section("2D Parameters", geometry).setMultipleKeys<double>(std::vector<double>(p2d.size(),0.0), p2d );
 			Section("3D Parameters", geometry).setMultipleKeys<double>(std::vector<double>(p3d.size(),0.0), p3d );
-			GetSet<>("Trajectory/Projection Matrices")=GetSet<>("Trajectory/Projection Matrices");
+			GetSet<>("Trajectory/Projection Matrices")=GetSet<>("Trajectory/Projection Matrices").getValue();
 		}
 
 		std::vector<double> parametrs_2D=Section("2D Parameters", geometry).getMultipleKeys<double>(p2d);

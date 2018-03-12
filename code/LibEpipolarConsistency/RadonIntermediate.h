@@ -3,6 +3,7 @@
 #define __radon_derivative
 
 #include <NRRD/nrrd_image.hxx>
+#include "LibProjectiveGeometry/ProjectiveGeometry.hxx"
 
 // Predeclaration of some CUDA stuff
 namespace UtilsCuda {
@@ -70,6 +71,7 @@ namespace EpipolarConsistency
 		template <typename Line>
 		inline float sample(Line& line)
 		{
+			using namespace Geometry;
 			// Compute range of t-value in Radon transform this dtr corresponds to
 			float range_t=(float)m_bin_size_distance*getNumberOfRadonBins(1);
 			// Length of normal
