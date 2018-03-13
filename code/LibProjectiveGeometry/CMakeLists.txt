@@ -1,3 +1,5 @@
+# find_package (Eigen3 3.2 REQUIRED NO_MODULE)
+
 # A libbrary for advanced 2D and 3D projective geometry
 add_library(LibProjectiveGeometry
 	# toString and stringTo<...> function for a few Eigen types.
@@ -28,6 +30,8 @@ add_library(LibProjectiveGeometry
 	# Obsolete alternative Parametrization of a projection matrix.
 	Models/ModelFDCTCalibrationCorrection.hxx
 )
+# target_link_libraries(LibProjectiveGeometry eigen3)
+
 install(FILES EigenToStr.hxx ProjectiveGeometry.hxx ProjectionMatrix.h SingularValueDecomposition.h CameraOpenGL.hxx GeometryVisualization.hxx DESTINATION include/LibProjectiveGeometry)
 install(FILES Models/ModelFDCTCalibrationCorrection.hxx Models/ModelCameraSimilarity2D3D.hxx Models/ModelSimilarity2D.hxx Models/ModelHomography2D.hxx Models/ModelSimilarity3D.hxx Models/ModelHomography3D.hxx Models/ModelTrajectoryIEC61217.hxx DESTINATION include/LibProjectiveGeometry/Models)
 install(TARGETS LibProjectiveGeometry DESTINATION lib EXPORT LibProjectiveGeometry-targets)

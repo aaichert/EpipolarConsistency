@@ -9,7 +9,7 @@ namespace Geometry
 {
 
 	/// Normalize a camera matrix P=[M|p4] by -sign(det(M))/||m3|| such that (du,dv,d)'=P(X,Y,Z,1)' encodes the depth d
-	inline void normalizeProjectionMatrix(ProjectionMatrix& P)
+	void normalizeProjectionMatrix(ProjectionMatrix& P)
 	{
 		double norm_m3=P.block<1,3>(2,0).norm();
 		double detM=P.block<3,3>(0,0).determinant();

@@ -32,7 +32,7 @@ set(CMAKE_DEBUG_POSTFIX "d")
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "limited configs" FORCE)
 
 # Shall dynamic or static linkage be the default?
-option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
+option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 
 # Let MSVC export all symbols by default and create output in bin dir
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -110,7 +110,7 @@ add_package(LibUtilsCuda                     "code"  ${ECC_LIBRARY_VERSION})
 #####################################################
 
 add_subproject(nrrdView                      "tools" ON)
-add_subproject(TrajectoryView                "tools" ON)
+add_subproject(TrajectoryView                "tools" OFF)
 
 add_subproject(VisualizeECC                  "tools" ON)
 
