@@ -36,10 +36,10 @@ option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 
 # Let MSVC export all symbols by default and create output in bin dir
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 # Enable parallel compilation on MSVC
 if(MSVC)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
     message(STATUS "Added parallel build arguments to CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 	# Allows solutions to be placed in certain folders
