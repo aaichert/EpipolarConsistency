@@ -67,6 +67,14 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+# Add NLOpt
+find_package(NLOpt QUIET)
+if (NOT NLOPT_FOUND)
+	message(WARNING "NLOpt could not be found. Some tools will not be available.")
+else()
+	include_directories(${NLOPT_INCLUDE_DIRS})
+endif()
+
 # Add Eigen
 set(EIGEN3_INCLUDE_PATH "/usr/include/eigen3" CACHE PATH "Full path to Eigen3")
 include_directories(${EIGEN3_INCLUDE_PATH})
@@ -88,7 +96,7 @@ include(cmake_scripts/qt5_win32_copy_dlls.cmake)
 
 # Add GetSet
 find_package(GetSet REQUIRED)
-include_directories(${GETSET_INCLUDE_DIRS})
+include_directories(${GetSet_INCLUDE_DIRS})
 
 ########################
 # Libraries "./code"
@@ -110,7 +118,12 @@ add_package(LibUtilsCuda                     "code"  ${ECC_LIBRARY_VERSION})
 #####################################################
 
 add_subproject(nrrdView                      "tools" ON)
-add_subproject(TrajectoryView                "tools" OFF)
+add_subproject(TrajectoryView                "tools" ON)
+add_subproject(VisualizeECC                  "tools" OFF)
 
-add_subproject(VisualizeECC                  "tools" ON)
+
+# Projects that rely on optimization
+if (NLOPT_FOUND)
+	add_subproject(FluoroTracking                "tools" OFF)
+endif()
 
