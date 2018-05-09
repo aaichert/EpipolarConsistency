@@ -39,42 +39,31 @@ This tutorial includes the following setps
 #####
 # 1) Building NLopt
 
-As of June 2016, NLopt binaries are provided on Windows only for MinGW. While the C-interface can be used directly, the c++ interface (which we will use) is not binary compatible. See also https://chadaustin.me/cppinterface.html for more info.
+We suggest using https://github.com/stevengj/nlopt from github which includes a CMakeLists.txt
 
 We have to build it ourselves:
 
-Step   I,   Download and uncompress latest sources from http://ab-initio.mit.edu/wiki/index.php/NLopt
-Step   II,  Go to http://ab-initio.mit.edu/wiki/index.php/NLopt_on_Windows and download CMakeLists.txt config.cmake.h.in to your NLopt directory.
-Step   III, Run Cmake GUI and specify your NLopt directory and a build directory
+Step   I,   Clone https://github.com/stevengj/nlopt
+Step   II,  Run Cmake GUI and specify your NLopt directory and a build directory
             (example:)
-                Where is the source code: -> C:/Development/nlopt-2.4.2
-		        Where to build the binaries:  -> C:/Development/nlopt-2.4.2/build
+                Where is the source code: -> C:/Development/nlopt
+		        Where to build the binaries:  -> C:/Development/nlopt/build
 Step IV,    Click configure and select your version of Visual Studio.
 Step  V,    Set CMAKE_INSTALL_PREFIX to where you would like to install nlopt to.
             (example:)
-                CMAKE_INSTALL_PREFIX -> C:/Development/extern/nlopt-2.4.2
+                CMAKE_INSTALL_PREFIX -> C:/Development/extern/nlopt
 Step  VI,   Click Configure and Generate again.
-            Open your nlopt-2.4.2/build/NLOPT.sln in Visual Studio. Change your configuration type to Release in the Configuration Manager
+            Open your nlopt/build/NLOPT.sln in Visual Studio. Change your configuration type to Release in the Configuration Manager
 Step  VII,  In the Solution Explorer, right-click the "INSTALL" project and select "Build".
             (example: the following files should be created:)
-                C:/Development/extern/nlopt-2.4.2/include/nlopt.h
-                C:/Development/extern/nlopt-2.4.2/include/nlopt.hpp
-                C:/Development/extern/nlopt-2.4.2/include/nlopt.f
-                C:/Development/extern/nlopt-2.4.2/lib/nlopt-0.dll
+                C:/Development/extern/nlopt/include/nlopt.h
+                C:/Development/extern/nlopt/include/nlopt.hpp
+                C:/Development/extern/nlopt/include/nlopt.f
+                C:/Development/extern/nlopt/lib/nlopt-0.dll
 				
-
-Note that as of June 2016 the CMakeLists.txt file does NOT create a proper config.cmake file for FIND_PACKAGE in the export directory.
-Note also that the nlopt-0.dll is actually a static library if you left BUILD_SHARED_LIBS unchecked (preferably).
-Basically, someone should really fix the CMakeLists.txt file. (Perhaps I will...)
-
 At this point, you can delete the sources.
 (example:)
-    delete "C:/Development/nlopt-2.4.2" but keep "C:/Development/extern/nlopt-2.4.2"
-
-IF YOU ENCOUNTER THE ERROR
-    1>nlopt.dir/Release/cobyla.obj : fatal error LNK1136: invalid or corrupt file
-    Work-around: There appears to be a bug in the optimizer of cl.exe. Disable optimization for nlopt/cobyla.c by right-clicking in the solution explorer and selecting properties.
-    "Configuration Properties/C-C++/Optimization" to "Disabled (/Od)" Then rebuild.
+    delete "C:/Development/nlopt" but keep "C:/Development/extern/nlopt"
 
 #####
 # 
