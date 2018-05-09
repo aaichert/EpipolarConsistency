@@ -60,10 +60,15 @@ Step  VII,  In the Solution Explorer, right-click the "INSTALL" project and sele
                 C:/Development/extern/nlopt/include/nlopt.hpp
                 C:/Development/extern/nlopt/include/nlopt.f
                 C:/Development/extern/nlopt/lib/nlopt-0.dll
+
+# NOTE! #
+# For some weird readon I needed to add
+# set (NLOPT_FOUND 1)
+# as a last line in .../extern/nlopt/lib/cmake/nlopt/NLoptConfig.cmake
 				
 At this point, you can delete the sources.
 (example:)
-    delete "C:/Development/nlopt" but keep "C:/Development/extern/nlopt"
+    delete "C:/Development/nlopt" but keep "C:/Development/extern/nlopt"	
 
 #####
 # 
@@ -71,11 +76,7 @@ At this point, you can delete the sources.
 
 If you would like to use the test/demo program, you will need to build another library straight from SourceForge.
 
-Step   I,   Go to https://sourceforge.net/projects/getset/ and download the source code.
-			(example:)
-			    Go to https://sourceforge.net/p/getset/code/ci/master/tree/ and click "Download Snapshot" and unpack to C:/Development/GetSet
-			    alternative:
-			    git clone git://git.code.sf.net/p/getset/code "C:/Development/GetSet"
+Step   I,   Go to https://github.com/aaichert/LibGetSet and clone the source code.
 Step   II,  Run Cmake GUI and specify your GetSet directory and a build directory
             (example:)
                 Where is the source code: -> C:/Development/GetSet
