@@ -1,0 +1,16 @@
+# The purpose of gitignore files is to ensure that certain files not tracked by Git remain untracked.
+# -> files are tracked at the moment:
+# To stop tracking a file that is currently tracked, use git rm --cached.
+
+# syntax:
+
+# one file per line
+# normally all files with that name in all subdirectories are ignored
+# begin with "/" (example: /file.type) -> only the current file in this directory is ignored
+# *.type -> ignores all files with that extension
+
+
+#ignored files: 
+config/example_data/proj000.nrrd
+config/example_data/proj040.nrrd
+config/VisualizeECC.ini
