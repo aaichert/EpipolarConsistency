@@ -1,4 +1,4 @@
-# We need cmake version 3.2.2 or higher
+﻿# We need cmake version 3.2.2 or higher
 cmake_minimum_required(VERSION 3.2.2)
 
 ############################################################
