@@ -57,7 +57,7 @@ add_library(LibEpipolarConsistencyGui
 	Gui/Registration.cpp
 )
 target_link_libraries(LibEpipolarConsistencyGui LibEpipolarConsistency LibProjectiveGeometry LibUtilsQt GetSet GetSetGui)
-install(FILES Gui/PreProccess.h Gui/ComputeRadonIntermediate.hxx Gui/Visualization.h Gui/DisplayGeometry.hxx DESTINATION include/LibEpipolarConsistency/Gui)
+install(FILES Gui/PreProccess.h Gui/ComputeRadonIntermediate.hxx Gui/MotionCompenstation.h Gui/Visualization.h Gui/DisplayGeometry.hxx DESTINATION include/LibEpipolarConsistency/Gui)
 install(TARGETS LibEpipolarConsistencyGui DESTINATION lib EXPORT LibEpipolarConsistencyGui-targets)
 install(EXPORT LibEpipolarConsistencyGui-targets DESTINATION cmake)
 set_property(TARGET LibEpipolarConsistencyGui PROPERTY FOLDER "EpipolarConsistency") 

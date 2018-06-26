@@ -101,8 +101,9 @@ __global__ void radonDerivative(cudaTextureObject_t tex, float n_u, float n_v, f
 	float sum=0;
 	if (!derivative)
 	{
+		// Start summation over a line
 		for (; t<=t_max; t+=step)
-			sum+=tex2D<float>(tex,o[0]+t*d[0],o[0]+t*d[1]);
+			sum +=tex2D<float>(tex,o[0]+t*d[0]     ,o[1]+t*d[1]     );
 		out[idx]=sum*step;
 	}
 	else

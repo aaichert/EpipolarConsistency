@@ -280,6 +280,17 @@ namespace UtilsQt {
 				return setData(y);
 			}
 
+			/// Set the data from std::map
+			Graph& setData(const std::map<double,double>& v)
+			{
+				std::vector<double> x,y;
+				for (auto it=v.begin();it!=v.end();++it) {
+					x.push_back(it->first );
+					y.push_back(it->second);
+				}
+				return setData(x,y);
+			}
+
 			/// Set the data from raw data
 			template<typename ScalarX, typename ScalarY>
 			Graph& setData(int n, const ScalarX * xdata, const ScalarY* ydata, int xstride = 1, int ystride = 1)

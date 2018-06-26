@@ -62,7 +62,8 @@ namespace UtilsQt {
 			callback.ignoreNotifications(false);
 		}
 		if (pixmap.width()<=0 || pixmap.height()<=0) return QPixmap();
-		QPixmap display=pixmap.scaledToWidth(pixmap.width()*_magnification ,Qt::SmoothTransformation);
+		bool interpolate=GetSet<bool>("General/Magnification/Interpolation",dictionary);
+		QPixmap display=pixmap.scaledToWidth(pixmap.width()*_magnification ,interpolate?Qt::SmoothTransformation:Qt::FastTransformation);
 		QPainter p(&display);
 		overlay.draw(p,getProjectionMatrix(),_magnification);
 		if (!!image_source && GetSet<bool>("Selections/Show",dictionary))
@@ -125,7 +126,9 @@ namespace UtilsQt {
 		callback.ignoreNotifications(false);
 		image_source.clone(img);
 		updatePixmap();
+		GetSet<bool>("General/Magnification/Interpolation",dictionary)=true;
 		if (pixmap.width()<=300 && pixmap.height()<=300) {
+			GetSet<bool>("General/Magnification/Interpolation",dictionary)=false;
 			GetSet<bool>("General/Magnification/Auto",dictionary)=true;
 			setVisibleSize(Eigen::Vector2i(512,512.0/pixmap.width()*pixmap.height()+1));
 			setPlainLook(false);
@@ -294,12 +297,18 @@ namespace UtilsQt {
 
 	void FigureWindow::file_export()
 	{
-		std::string path=QFileDialog::getSaveFileName(0x0, "Save as PDF",(name+".pdf").c_str(), "Portable Document Format (*.pdf);;All Files (*)").toStdString();
-		if (!path.empty()) savePDF(path);
+		std::string path=QFileDialog::getSaveFileName(0x0, "Export...",(name+".pdf").c_str(), "Portable Document Format (*.pdf);;Portable Network Graphics (*.png);;All Files (*)").toStdString();
+		if (path.empty()) return;
+		std::string extension=path;
+		extension=splitRight(extension,".");
+		if (extension=="png")
+			savePNG(path);
+		else
+			savePDF(path);
 	}
 
 	void FigureWindow::file_close()     { window->close(); }
-	void FigureWindow::edit_copy()      { QApplication::clipboard()->setPixmap(render()); }
+	void FigureWindow::edit_copy()      { QApplication::clipboard()->setImage(render().toImage(), QClipboard::Clipboard); }
 	void FigureWindow::edit_zoom_in()   { GetSet<double> magnification("General/Magnification/Factor",dictionary); double m=((int)(magnification*10))*0.1+.2; magnification=m>4?4:m; update(); }
 	void FigureWindow::edit_zoom_out()  { GetSet<double> magnification("General/Magnification/Factor",dictionary); double m=((int)(magnification*10))*0.1-.2; magnification=m>4?4:m; update(); }
 	void FigureWindow::edit_editplots() { UtilsQt::showPlotEditor(); }
@@ -556,6 +565,7 @@ namespace UtilsQt {
 		GetSet<bool>("Projection/Manual Projection",dictionary)=true;
 		GetSet<double>("General/Magnification/Factor",dictionary)=1;
 		GetSet<bool>("General/Magnification/Auto",dictionary)=false;
+		GetSet<bool>("General/Magnification/Interpolation",dictionary)=true;
 		GetSetGui::Section("General/Magnification",dictionary).setGrouped();
 		GetSetGui::Section("General",dictionary).setGrouped();
 

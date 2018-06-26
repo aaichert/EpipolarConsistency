@@ -220,7 +220,6 @@ namespace EpipolarConsistency {
 		gui_ignore_notify(false);
 	}
 
-
 	void InputDataRadonIntermediateGui::gui_notify(const std::string& section, const GetSetInternal::Node& node)
 	{
 		// Reload data
@@ -266,12 +265,11 @@ namespace EpipolarConsistency {
 			if (diag.exec("Advanced Visualization"))
 			{
 				EpipolarConsistency::displayRadonSamples(
-					GetSet<int>   ("Epipolar Consistency/Index Reference" ,diag),
-					GetSet<int>   ("Epipolar Consistency/Index Input"     ,diag),
+					GetSet<int>   ("Epipolar Consistency/Index Reference"   ,diag),
+					GetSet<int>   ("Epipolar Consistency/Index Input"       ,diag),
 					GetSet<double>("Epipolar Consistency/Plane Angle [deg]" ,diag)/180*Geometry::Pi,
 					Ps,dtrs,app);
 			}
-
 		}
 #endif // _HAS_UTILS_QT
 	}
@@ -283,6 +281,5 @@ namespace EpipolarConsistency {
 
 	const std::vector<Geometry::ProjectionMatrix>&               InputDataRadonIntermediateGui::getProjectionMatrices()         const { return Ps; }
 	const std::vector<EpipolarConsistency::RadonIntermediate*>&  InputDataRadonIntermediateGui::getRadonIntermediateFunctions() const { return dtrs; }
-
 
 } // namespace EpipolarConsistency

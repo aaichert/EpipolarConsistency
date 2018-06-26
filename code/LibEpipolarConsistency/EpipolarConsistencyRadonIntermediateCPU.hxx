@@ -202,8 +202,8 @@ namespace EpipolarConsistency
 			float n_y2=dtr0->getOriginalImageSize(1)*0.5f;
 			Eigen::Vector4f C0f=C0.cast<float>();
 			Eigen::Vector4f C1f=C1.cast<float>();
-			float step_alpha=(float)dtr0->getStepRadonBinning(0);
-			float step_t=(float)dtr0->getStepRadonBinning(1);
+			float step_alpha=(float)dtr0->getRadonBinSize(0);
+			float step_t=(float)dtr0->getRadonBinSize(1);
 			float n_t=(float)dtr0->data().size(0);
 			float n_alpha=(float)dtr0->data().size(1);
 			Eigen::Matrix<float,3,4> P0pT_e=Geometry::pseudoInverse(P0).transpose().cast<float>();

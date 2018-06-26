@@ -75,10 +75,10 @@ namespace EpipolarConsistency
 		// Store size and parameters of dtrs (assumed to be identical)
 		dtrs=_dtrs;
 		int n_dtr=(int)_dtrs.size();
-		step_alpha=(float)_dtrs[0]->getStepRadonBinning(0);
-		step_t=(float)_dtrs[0]->getStepRadonBinning(1);
-		n_alpha=_dtrs[0]->getNumberOfRadonBins(0);
-		n_t=_dtrs[0]->getNumberOfRadonBins(1);
+		step_alpha=(float)_dtrs[0]->getRadonBinSize(0);
+		step_t=(float)_dtrs[0]->getRadonBinSize(1);
+		n_alpha=_dtrs[0]->getRadonBinNumber(0);
+		n_t=_dtrs[0]->getRadonBinNumber(1);
 		n_u=_dtrs[0]->getOriginalImageSize(0);
 		n_v=_dtrs[0]->getOriginalImageSize(1);
 		m_isDerivative=_dtrs[0]->isDerivative();
@@ -268,9 +268,9 @@ namespace EpipolarConsistency
 		computeK01(
 			n_u*0.5f,n_v*0.5f,
 			C0f.data(),C1f.data(),P0invTf.data(),P1invTf.data(),
-			(float)getObjectRadius(),sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
+			(float)getObjectRadius(),std::sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
 			K0,K1);
-		// Make sure we have data available on CPU FIXME readback of BindlessTexture...
+		// Make sure we have data available on CPU
 		dtr0.readback();
 		dtr1.readback();
 		// Figure out plane angle range and step
@@ -289,8 +289,8 @@ namespace EpipolarConsistency
 		for (float kappa=-kappa_max+0.5f*dkappa; kappa<kappa_max; kappa+=dkappa)
 		{
 			// Compute cosine and sine of kappa
-			float x0=cosf(kappa);
-			float x1=sinf(kappa);
+			float x0=std::cosf(kappa);
+			float x1=std::sinf(kappa);
 
 			// Find corresponding epipolar lines for plane at angle kappa (same as culaut::xgemm<float,3,2,1>(K,x_k,l);)
 			float line0[]={K0[0]*x0+K0[3]*x1,K0[1]*x0+K0[4]*x1,K0[2]*x0+K0[5]*x1};
@@ -310,7 +310,7 @@ namespace EpipolarConsistency
 			// Accumulate
 			ecc=(v0-v1)*(v0-v1)*dkappa;
 		}
-
+		
 		return ecc;
 	}
 

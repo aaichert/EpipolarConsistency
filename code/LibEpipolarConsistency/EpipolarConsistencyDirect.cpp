@@ -34,10 +34,10 @@ namespace EpipolarConsistency
 		auto P0invT=pseudoInverse(P0).transpose().eval();
 		auto P1invT=pseudoInverse(P1).transpose().eval();
 		// Figure out epipolar planes at 0 and 90 degrees w.r.t. the origin.
-		RP3Plane  E0=join_pluecker(B,origin3);
+		RP3Plane E0 =join_pluecker(B,origin3);
 		RP3Plane E90=join_pluecker(B,E0);
 		// Convert to Hessian normal form
-		E0/=E0.head(3).norm();
+		E0 /=E0 .head(3).norm();
 		E90/=E90.head(3).norm();
 
 		// Loop over all kappas

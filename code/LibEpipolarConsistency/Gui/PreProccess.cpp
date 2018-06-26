@@ -29,7 +29,7 @@ namespace EpipolarConsistency
 		section.subsection("Geometry"       ).setCollapsed();
 		section.subsection("Border"         ).setGrouped();
 		GetSetGui::StaticText  ("Intensity/_info"                , section)="Simple conversion from X-ray intenstiy to line-integral data.\nThese pixel-wise operations are applied as the first step.";
-		GetSetGui::StaticText  ("Lowpass Filter/_info"           , section)="Avoid sampling artifacts in case of low-resolution Radon intermediate functions.";
+		GetSetGui::StaticText  ("Lowpass Filter/_info"           , section)="Avoid sampling artifacts and reduce noise.";
 		GetSetGui::StaticText  ("Geometry/_info"                 , section)="Image is flipped as a last step\n(before Gaussian convolution).";
 		GetSetGui::StaticText  ("Border/_info"                   , section)="Remove strong edges close to the image borders, in case of collimation, truncation etc.";
 
@@ -143,7 +143,7 @@ namespace EpipolarConsistency
 				auto &pixel=image.pixel(u,v);
 				float pou=(float)u-ppu;
 				float pov=(float)v-ppv;
-				float cos_weight=sdd_px/sqrtf(pou*pou+pov*pov+sdd_px*sdd_px);
+				float cos_weight=sdd_px/std::sqrtf(pou*pou+pov*pov+sdd_px*sdd_px);
 				pixel*=cos_weight;
 			}
 	}
