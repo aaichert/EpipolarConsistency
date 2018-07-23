@@ -109,7 +109,7 @@ namespace EpipolarConsistency
 		// Set variables compatible to new image dimensions
 		n_alpha = radon_intermediate_image.size(0);
 		n_t = radon_intermediate_image.size(1);
-		double diagonal = std::sqrt((double)n_y*n_y + n_x*n_x);
+		double diagonal = sqrt((double)n_y*n_y + n_x*n_x);
 		m_bin_size_distance = diagonal / n_t;
 		readPropertiesFromMeta(radon_intermediate_image.meta_info);
 		// Invalidate old texture data
@@ -191,7 +191,7 @@ namespace EpipolarConsistency
 		m_tex=0x0;
 		n_x=projectionData.size[0];
 		n_y=projectionData.size[1];
-		double diagonal=std::sqrt((double)n_y*n_y+n_x*n_x);
+		double diagonal=sqrt((double)n_y*n_y+n_x*n_x);
 		m_bin_size_distance=diagonal/n_t;
 		m_bin_size_angle=Pi/n_alpha;
 		// A negative derivativeDistance will instead compute a normal Radon trasnform

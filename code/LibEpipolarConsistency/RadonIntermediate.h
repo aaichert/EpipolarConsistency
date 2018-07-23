@@ -3,6 +3,7 @@
 #define __radon_derivative
 
 #include <NRRD/nrrd_image.hxx>
+#include "LibProjectiveGeometry/ProjectiveGeometry.hxx"
 
 // Predeclaration of some CUDA stuff
 namespace UtilsCuda {
@@ -12,6 +13,7 @@ namespace UtilsCuda {
 
 namespace EpipolarConsistency
 {
+	using Geometry::Pi;
 	/// Compute derivative in t-direction of Radon transform of x-ray projection data.
 	class RadonIntermediate {
 	public:
