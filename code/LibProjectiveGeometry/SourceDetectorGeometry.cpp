@@ -1,5 +1,6 @@
 
 #include "SourceDetectorGeometry.h"
+#include <eigen3/Eigen/Geometry>
 
 namespace Geometry
 {
