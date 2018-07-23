@@ -268,7 +268,7 @@ namespace EpipolarConsistency
 		computeK01(
 			n_u*0.5f,n_v*0.5f,
 			C0f.data(),C1f.data(),P0invTf.data(),P1invTf.data(),
-			(float)getObjectRadius(),std::sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
+			(float)getObjectRadius(),sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
 			K0,K1);
 		// Make sure we have data available on CPU
 		dtr0.readback();
