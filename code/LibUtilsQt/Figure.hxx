@@ -65,7 +65,7 @@ namespace UtilsQt {
 			figure.setVisibleSize(Eigen::Vector2i(w,h));
 		}
 
-		/// Draw to a new window. Init pixmap with contents of a NRRD::Image. If _window is null it will be allocated.
+		/// Draw to a new window. Init pixmap with contents of a NRRD::Image.
 		Figure(const std::string& _name, const NRRD::ImageView<float>& img, double bias=0, double scale=0, bool is_signed=false)
 			: name(_name)
 		{
@@ -81,20 +81,20 @@ namespace UtilsQt {
 			return  FigureWindow::exists(name, must_be_visible);
 		}
 
-		/// Set the projection matix used for displaying 3D content.
-		Figure& setProjectionMatrix(const Geometry::ProjectionMatrix& P) {
-			FigureWindow::instance(name).setProjectionMatrix(P);
-			return *this;
-		}
-
 		/// Get current projection matrix.
 		Geometry::ProjectionMatrix getProjectionMatrix() {
 			if (!exists()) return Geometry::ProjectionMatrix::Zero();
 			return FigureWindow::instance(name).getProjectionMatrix();
 		}
 		
+		/// Set the projection matix used for displaying 3D content.
+		Figure& setProjectionMatrix(const Geometry::ProjectionMatrix& P) {
+			FigureWindow::instance(name).setProjectionMatrix(P);
+			return *this;
+		}
+
 		/// Access projection parameters
-		ProjectionParameters& projection_parameters()
+		ProjectionParameters& projectionParameters()
 		{
 			return FigureWindow::instance(name).projection_parmeters();
 		}
@@ -119,6 +119,12 @@ namespace UtilsQt {
 			return *this;
 		}
 
+		// Forget about this instance. Do not update on destruction
+		void forget()
+		{
+			name="";
+		}
+
 		/// Get size of the figure (which is different from its window size)
 		Eigen::Vector2i getSize() {
 			if (!exists()) return Eigen::Vector2i(0,0);
@@ -137,7 +143,7 @@ namespace UtilsQt {
 			return  FigureWindow::instance(name).getImage();
 		};
 
-		/// Access the image source of this figure. May be empty for 3D visualizations.
+		/// Access the image source of this figure.
 		Figure& setImage(const NRRD::ImageView<float>& img, double bias=0, double scale=0, bool is_signed=false) {
 			FigureWindow::instance(name).setImage(img, bias, scale, is_signed);
 			return *this;
@@ -146,6 +152,12 @@ namespace UtilsQt {
 		/// A callback when mouse is clicked in select mode.
 		Figure& setCallback(void (*select)(const std::string&, bool , std::vector<Eigen::Vector4d>&)) {
 			FigureWindow::instance(name).setCallback(select);
+			return *this;
+		}
+
+		/// A callback when window is refreshed (e.g. user rotates camera or changes window size). Returns true when pixmap needs to update.
+		Figure& setCallback(bool (*update)(NRRD::Image<float>& image_source, GraphicsItems::Group&, UtilsQt::ProjectionParametersGui&, double)) {
+			FigureWindow::instance(name).setCallback(update);
 			return *this;
 		}
 
@@ -167,6 +179,13 @@ namespace UtilsQt {
 			return setSelection(std::vector<Eigen::Vector4d>(),blue);
 		}
 		
+		/// Set intensity bias and scale
+		Figure& setContrast(double bias=0, double scale=0, bool is_signed=0)
+		{
+			FigureWindow::instance(name).setContrast(bias,scale,is_signed);
+			return *this;	
+		}
+
 		/// Save figure to file.
 		Figure& savePNG(const std::string& png_file) {
 			FigureWindow::instance(name).savePNG(png_file);
@@ -204,7 +223,7 @@ namespace UtilsQt {
 		}
 
 		/// Draw colored text starting at pixel x,y
-		Figure& drawText(const std::string& str, int x=0, int y=0, const QColor& color=QColor(255,255,255)) {
+		Figure& drawText(const std::string& str, int x=20, int y=20, const QColor& color=QColor(255,255,255)) {
 			return draw(GraphicsItems::Text2D(str,x,y,color),"Text2D ");
 		}
 
@@ -226,7 +245,7 @@ namespace UtilsQt {
 		}
 
 		/// Display a figure as part of a tiled set of Figures
-		Figure& showTiled(int index, int w=0, int h=0)
+		Figure& showTiled(int index, int w=0, int h=0, bool plain_look=true)
 		{
 			int space_w=6;
 			int space_h=38;
@@ -240,7 +259,7 @@ namespace UtilsQt {
 			int win_x=rect.x()+(w+space_w)*index_column;
 			int win_y=rect.y()+(h+space_h)*index_row;
 			figure.window->move(win_x,win_y);
-			figure.setPlainLook();
+			figure.setPlainLook(plain_look);
 			figure.setVisibleSize(Eigen::Vector2i(w,h));
 			figure.setAutoResize();
 			return *this;

@@ -31,7 +31,9 @@ void epipolarConsistency(
 	float *out_d,			//< num_indices result values, unless indices is null. Then nxn matrix. Only sub-diagonal elements are written to.
 	float object_radius_mm,	//< Approximate size of object in mm (determines angular range, can be zero)
 	float dkappa,			//< Angular distance between epipolar planes (can be zero if object_radius_mm and num_samples are given)
-	bool isDerivative		//< If false, nornmal Radon transform, else its derivative
+	bool isDerivative,		//< If false, normal Radon transform, else its derivative
+	bool use_corr,			//< If null, SSD is used as a similarity measure, else correlation coeff is used.
+	float *out_corr_d		//< Temporary memory for weights and NCC computation
 	);
 
 namespace EpipolarConsistency
@@ -44,6 +46,8 @@ namespace EpipolarConsistency
 		, indices(new UtilsCuda::MemoryBlock<int>())
 		, K01s(new UtilsCuda::MemoryBlock<float>())
 		, out(new UtilsCuda::MemoryBlock<float>())
+		, corr_out(new UtilsCuda::MemoryBlock<float>())
+		, use_corr(false)
 	{}
 
 	MetricRadonIntermediate::MetricRadonIntermediate(const std::vector<ProjectionMatrix>& Ps, const std::vector<RadonIntermediate*>& _dtrs)
@@ -54,6 +58,8 @@ namespace EpipolarConsistency
 		, indices(new UtilsCuda::MemoryBlock<int>())
 		, K01s(new UtilsCuda::MemoryBlock<float>())
 		, out(new UtilsCuda::MemoryBlock<float>()) 
+		, corr_out(new UtilsCuda::MemoryBlock<float>())
+		, use_corr(false)
 	{
 		setProjectionMatrices(Ps);
 		setRadonIntermediates(_dtrs);
@@ -67,6 +73,14 @@ namespace EpipolarConsistency
 		delete indices;
 		delete K01s;
 		delete out;
+		delete corr_out;
+	}
+
+	/// Tell Metric to compute correlation instead of SSD
+	MetricRadonIntermediate& MetricRadonIntermediate::useCorrelation(bool corr)
+	{
+		use_corr=corr;
+		return *this;
 	}
 
 	/// Move Radon derivataives to texture memory and store reference here. DO NOT delete or change _dtrs during lifetime of MetricRadonIntermediate.
@@ -91,17 +105,29 @@ namespace EpipolarConsistency
 		return *this;
 	}
 
+
+	/// Access Radon intermediate functions (for visualization and debugging)
+	const std::vector<RadonIntermediate*>& MetricRadonIntermediate::getRadonIntermediates() const 
+	{
+		return dtrs;
+	}
+	
 	//Metric&  MetricRadonIntermediate::setRadonIntermediateBinning(int num_bins_per_180_deg, int num_bins_per_image_diagonal, GetSet::)
 	//{
 	//	n_alpha =num_bins_per_180_deg;
 	//	n_t     =num_bins_per_image_diagonal;
 	//}
 
-
 	Metric& MetricRadonIntermediate::setProjectionImages(const std::vector<UtilsCuda::BindlessTexture2D<float>*>& Is)
 	{
 		// TODO
 		return *this;
+	}
+
+	inline float cc(float * xyxxyyxy)
+	{
+//		return (xyxxyyxy[4]-xyxxyyxy[0]*xyxxyyxy[1])/(sqrt(xyxxyyxy[2]-xyxxyyxy[0]*xyxxyyxy[0])*sqrt(xyxxyyxy[3]-xyxxyyxy[1]*xyxxyyxy[1]));
+		return xyxxyyxy[4]/(sqrt(xyxxyyxy[2])*sqrt(xyxxyyxy[3]));
 	}
 
 	/// Compute null space and pseudoinverse of projection matrices and convert to float
@@ -141,13 +167,17 @@ namespace EpipolarConsistency
 	{
 		int n=(int)Ps.size();
 		out->allocate(n*n);
-		K01s->allocate(n*(n - 1) * 8);
+		K01s->allocate(n*(n-1)*8);
 		std::vector<float> tmp_data;
-		if (!_out)
-		{
+		if (!_out) {
 			tmp_data = std::vector<float>(n*n, 0.0f);
 			_out = &tmp_data[0];
 		}
+
+		// Make some space for temporaries
+		int n_tmp=use_corr?6:1;
+			corr_out->allocate(n_tmp*n*(n-1)/2);
+		corr_out->setZero();
 
 		// Download current values of out (so as not to remove values not written to)
 		out->download(_out);
@@ -156,19 +186,42 @@ namespace EpipolarConsistency
 			n_u, n_v, n, *tex_dtrs, 
 			n_alpha, n_t, step_alpha, step_t,
 			n, *Cs, *PinvTs, 0, 0x0, *K01s, *out,
-			(float)getObjectRadius(), (float)dkappa, m_isDerivative );
-		// Read back and sum up
-		out->readback(_out);
-		double sum=0;
-		for (int i=0;i<n;i++)
-			for (int j=i;j<n;j++)
-			{
-				_out[i+j*n]=_out[i+j*n];
-				if (i<j)
-					sum+=(double)_out[i+j*n];
-			}
-		return sum/(n*(n-1)/2);
+			(float)getObjectRadius(), (float)dkappa, m_isDerivative, use_corr, *corr_out);
 
+		// Readback intermediate data
+		NRRD::Image<float> out_sums(n_tmp,n*(n-1)/2);
+		corr_out->readback(out_sums);
+		//out_sums.save("out_sums.nrrd");// DEBUG
+
+		// Compute weighted sums of either correlation or SSD
+		double weighted_sum=0,sum_over_weights=0;
+		int l=out_sums.length();
+		if (use_corr)
+		{
+			#pragma omp parallel for reduction (+:weighted_sum,sum_over_weights)
+			for (int ij6=0;ij6<l;ij6+=6) {
+				short i,j;
+				get_ij(ij6/6,n,i,j);
+				float corr=cc(&out_sums[ij6]);
+				float weight=out_sums[ij6+5];
+				weighted_sum+=(_out[i+j*n]=(1.0f-corr)*weight);
+				sum_over_weights+=weight;
+			}
+		}
+		else
+		{
+			// Read back and sum up
+			out->readback(_out);
+			//#pragma omp parallel for reduction (+:weighted_sum,sum_over_weights)
+			for (int ij=0;ij<l;ij++) {
+				short i,j;
+				get_ij(ij,n,i,j);
+				float weight=out_sums[ij];
+				weighted_sum+=(_out[i+j*n]*=weight);
+				sum_over_weights+=weight;
+			}
+		}
+		return weighted_sum/sum_over_weights;
 	}
 
 	/// Evaluates MetricRadonIntermediate for just specific view
@@ -180,23 +233,15 @@ namespace EpipolarConsistency
 				if (i == j) continue;
 				indices.push_back(Eigen::Vector4i(*i, *j, *i, *j));
 			}
-		// Temporary memory, if needed
+		// Temporary memory, as needed
 		std::vector<float> tmp;
 		if (!_out)
 		{
 			tmp.resize(indices.size());
 			_out=&tmp[0];
 		}
-		// Sum up
-		evaluate(indices,_out);
-		double sum=0;
-		#pragma omp parallel for reduction(+:sum)
-		for (int i=0;i<indices.size();i++)
-		{
-			_out[i]=sqrt(_out[i]+1);
-			sum+=(double)_out[i];
-		}
-		return sum/indices.size();
+		// Sum up weights and cost
+		return evaluate(indices,_out);
 	}
 
 	// Might be useful for debugging: if CUDA crashed, you likely messed up the index array
@@ -219,13 +264,13 @@ namespace EpipolarConsistency
 	}
 
 	/// Evaluates MetricRadonIntermediate for specific pairs and projection geometry. Will write indices.size() float values to out.
-	void MetricRadonIntermediate::evaluate(const std::vector<Eigen::Vector4i>& _indices, float * _out)
+	double MetricRadonIntermediate::evaluate(const std::vector<Eigen::Vector4i>& _indices, float * _out)
 	{
 		#ifdef _DEBUG
 			if (!check_indices(_indices,(int)Ps.size(),(int)dtrs.size()))
 			{
 				std::cerr << "EpipolarConsistency::MetricRadonIntermediate::evaluate(...) runtime error: Index array contains invalid indices.\n";
-				return;
+				return 0.0;
 			}
 		#endif // _DEBUG
 
@@ -234,13 +279,46 @@ namespace EpipolarConsistency
 		indices->download(_indices[0].data(),n_pairs*4);
 		out->allocate(n_pairs);
 		K01s->allocate(n_pairs*16);
+			
+		if (use_corr) {
+			corr_out->allocate(n_pairs*6);
+			corr_out->setZero();
+		}
+		else  {
+			corr_out->allocate(n_pairs);
+			corr_out->setZero();
+		}
+
 		epipolarConsistency(
 			n_u, n_v, (int)dtrs.size(), *tex_dtrs,
 			n_alpha, n_t, step_alpha, step_t,
 			(int)Ps.size(), *Cs, *PinvTs,
 			n_pairs, *indices, *K01s, *out,
-			(float)getObjectRadius(), (float)dkappa, m_isDerivative);
-		out->readback(_out);
+			(float)getObjectRadius(), (float)dkappa, m_isDerivative,
+			use_corr, *corr_out);
+
+		// Read back intermediate results, if required, compute correlation coefficient
+		NRRD::Image<float> out_sums(use_corr?6:1,n_pairs);
+		corr_out->readback(out_sums);
+		if (use_corr)
+		{
+			#pragma omp parallel for
+			for (int i=0;i<n_pairs;i++)
+				_out[i]=1.0f-cc(out_sums+i*6);
+		}
+		else
+			out->readback(_out);
+
+		// Compute weighted sum
+		int n_tmp=use_corr?6:1;
+		double weighted_sum=0,sum_over_weights=0;
+		#pragma omp parallel for reduction (+:weighted_sum,sum_over_weights)
+		for (int i=0;i<n_pairs;i++) {
+			float weight=out_sums[i*n_tmp+n_tmp-1];
+			weighted_sum+=(_out[i]*=weight);
+			sum_over_weights+=weight;
+		}
+		return weighted_sum/sum_over_weights;
 	}
 
 	double MetricRadonIntermediate::evaluateForImagePair(int i, int j,
@@ -268,7 +346,7 @@ namespace EpipolarConsistency
 		computeK01(
 			n_u*0.5f,n_v*0.5f,
 			C0f.data(),C1f.data(),P0invTf.data(),P1invTf.data(),
-			(float)getObjectRadius(),sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
+			(float)getObjectRadius(),std::sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
 			K0,K1);
 		// Make sure we have data available on CPU
 		dtr0.readback();
@@ -289,8 +367,8 @@ namespace EpipolarConsistency
 		for (float kappa=-kappa_max+0.5f*dkappa; kappa<kappa_max; kappa+=dkappa)
 		{
 			// Compute cosine and sine of kappa
-			float x0=cosf(kappa);
-			float x1=sinf(kappa);
+			float x0=std::cosf(kappa);
+			float x1=std::sinf(kappa);
 
 			// Find corresponding epipolar lines for plane at angle kappa (same as culaut::xgemm<float,3,2,1>(K,x_k,l);)
 			float line0[]={K0[0]*x0+K0[3]*x1,K0[1]*x0+K0[4]*x1,K0[2]*x0+K0[5]*x1};

@@ -25,8 +25,14 @@
 
 #include <cmath>
 
-//  how to have a constant in both device and host?
-#define Pi 3.14159265359f
+
+/// f(x)=1-x^2+x^4 is zero at +/-1, has zero derivative at +/-1 and a maxiumum at f(0)=1; Values outside [-1,1] are clamped to zero. 
+template <typename T> __device__ __host__ inline T weighting(T x)
+{
+	if (x<T(-1)||x>T(1)) return T(0);
+	T xx=x*x;
+	return T(1)-2*xx+xx*xx;
+}
 
 /// General matrix multiplication MxO times OxN result is MxN
 template <typename T, int M, int O, int N> __device__ __host__ inline
@@ -113,10 +119,10 @@ __device__ __host__ inline void computeK01(
 	float B13=C0[1]*C1[3]-C0[3]*C1[1];
 	float B23=C0[2]*C1[3]-C0[3]*C1[2];
 	// Normalize by line moment of baseline
-	const float s2=sqrtf(B12*B12+B02*B02+B01*B01);
-	const float s3=sqrtf(B03*B03+B13*B13+B23*B23);
+	const float s2=std::sqrtf(B12*B12+B02*B02+B01*B01);
+	const float s3=std::sqrtf(B03*B03+B13*B13+B23*B23); //< Distance between source positions if C0[3]==C1[3]
 	// K is a 4x2 matrix mapping [cos(kappa) sin(kappa)] to epipolar plane E_kappa.
-	// It constsits of two planes E0 and E90, (i.e. for kappa=0 and kappa=90°) both of which contain the baseline.
+	// It consists of two planes E0 and E90, (i.e. for kappa=0 and kappa=90°) both of which contain the baseline.
 	float K[] = {
 	    + B12/s2                    , - B02/s2                    , + B01/s2                    , 0,	  //< E0  Plane through origin
 	   (- B01*B13 - B02*B23)/(s2*s3),(+ B01*B03 - B12*B23)/(s2*s3),(+ B02*B03 + B12*B13)/(s2*s3), -s2/s3, //< E90 Plane with maximal distance to origin
@@ -129,8 +135,10 @@ __device__ __host__ inline void computeK01(
 	shiftOriginAndNormlaize(n_x2,n_y2,K1);
 	// Distance of baseline to reference point
 	K0[6]=s2/s3;
-	K0[7]=0;
-	// If the baseline intersects the object, ECC is not well-defined. We return a half circle anyway.
+	// Angle between source positions and reference point
+	K0[7]=-2.0f*atan2f(-0.5f*s3,s2/s3);
+	// If the baseline intersects the object, we return a half circle.
+	const float Pi=3.14159265359f;
 	if (K0[6]<=object_radius_mm)
 		K1[7]=0.5f*Pi;
 	else// Define range of kappa based on baline distance and radius of object
@@ -140,9 +148,11 @@ __device__ __host__ inline void computeK01(
 	else             K1[6]=dkappa;
 }
 
-/// Compute location to be sampled within Radon intermediate transform. line[0] -> angle, line[1] distance. Note that -1<line[0]<1 (periodicity)
-__device__ __host__ inline void lineToSampleDtr(float *line, float range_t)
+/// Compute location to be sampled within Radon intermediate transform. line[0] -> angle, line[1] distance. Returns true if periodicity had to be used to get the sample in 0-1 range.
+template <typename Line>
+__device__ __host__ inline bool lineToSampleDtr(Line& line, float range_t)
 {
+	const float Pi=3.14159265359f;
 	// Length or normal vector
 	float length=sqrtf(line[0]*line[0]+line[1]*line[1]);
 	// Angle between line normal and x-axis (scaled from 0 to +2)
@@ -150,6 +160,14 @@ __device__ __host__ inline void lineToSampleDtr(float *line, float range_t)
 	if (line[0]<0) line[0]+=2;
 	// Distance to the origin (scaled to DTR bins)
 	line[1]=-(line[2]/length)/range_t+0.5f;
+	// Account for periodicity	
+	if (line[0]>1)
+	{
+		line[0]=line[0]-1.f;
+		line[1]=1.f-line[1];
+		return true;
+	}
+	return false;
 }
 
 #ifdef udef__device__

@@ -10,7 +10,7 @@
 namespace EpipolarConsistency {
 
 	// Epipolar consistency metric for registration of two CTs
-	class Registration : public LibOpterix::OptimizationProblem<Geometry::Homograpgy>
+	class Registration : public LibOpterix::OptimizationProblem<Geometry::ProjectionMatrix>
 	{
 		std::vector<Geometry::ProjectionMatrix>					Ps;		//< Projection Matrices. First is input image.
 		std::vector<EpipolarConsistency::RadonIntermediate*>	dtrs;	//< Radon Intermediate functions. First is input image.

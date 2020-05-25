@@ -89,9 +89,6 @@ namespace EpipolarConsistency {
 		/// Adds a re-load button to the usual InputDataDirect Gui.
 		virtual void gui_declare_section(const GetSetGui::Section& section);
 
-		// Temporary varable holding information in case of single file input
-		NRRD::ImageStack<float> *stack;
-
 	public:
 		InputDataDirectGui(const GetSetGui::Section& section, GetSetGui::ProgressInterface* app=0x0);
 

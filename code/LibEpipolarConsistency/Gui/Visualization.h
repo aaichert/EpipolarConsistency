@@ -62,7 +62,9 @@ namespace EpipolarConsistency {
 		LibOpterix::AbstractOptimizationProblem& cost_function,
 		int steps,
 		const std::vector<double>& lower_bounds_active,
-		const std::vector<double>& upper_bounds_active
+		const std::vector<double>& upper_bounds_active,
+		void (*debug_hook)(double, LibOpterix::AbstractOptimizationProblem*)=0x0,
+		std::vector<double> current_estimate=std::vector<double>()
 		)
 	{
 		bool cancel_clicked=false;
@@ -71,26 +73,40 @@ namespace EpipolarConsistency {
 		auto  active_names=parameter_model.parameterNamesActive();
 		int   n_active=(int)active_set.size();
 		int   i_active=0;
-		UtilsQt::Plot(window_title).close();
+		std::set<std::string> open_plots;
+		// 1D cost function plot for each parameter p
 		for (int p=0;p<(int)active_set.size();p++)
 		{
+			// FIXME check current_estimate for empty or size n_active
 			if (cancel_clicked) break;
 			std::string name=active_names[p];
-			app.progressStart("Plotting...",name,n_active*steps,&cancel_clicked); // 2do info?
+			app.progressStart("Plotting...",std::string("Plotting ")+name+" in range [" + toString(lower_bounds_active[p])+", "+toString(upper_bounds_active[p]) +"] ...",n_active*steps,&cancel_clicked); // 2do info?
 			std::vector<double> restricted(n_active,0.0);
 			std::vector<double> plot_x(steps);
 			std::vector<double> plot_y(steps);
+			if (!current_estimate.empty())
+				restricted=current_estimate;
 			for (int i=0;i<steps;i++)
 			{
-				double rel_i=(double)(i/(steps-1));
-				plot_x[i]=restricted[p]=lower_bounds_active[p]*(1.0-rel_i)+upper_bounds_active[p]*rel_i;
+				double rel_i=(double)i/(steps-1);
+				plot_x[i]=lower_bounds_active[p]*(1.0-rel_i)+upper_bounds_active[p]*rel_i;
+				restricted[p]=(current_estimate.empty()?0:current_estimate[p])+plot_x[i];
 				plot_y[i]=cost_function.evaluate(restricted);
-				app.progressUpdate(i+i_active*steps);
+				if (debug_hook)
+					debug_hook(plot_y[i],&cost_function);
+				app.progressUpdate(i+p*steps);
 			}
-			UtilsQt::Plot(window_title)
-				.setAxisLabels("Parameter Value","Consistency [a.u.]")
-				.addGraph(name,plot_x,plot_y);
-
+			std::vector<std::string> words=stringToVector<std::string>(name,' ');
+			std::string plot_title=window_title+(words.empty()?"":" "+words[0]);
+			if (open_plots.find(plot_title)==open_plots.end())
+				UtilsQt::Plot(plot_title).close();
+			open_plots.insert(plot_title);
+			UtilsQt::Plot(plot_title)
+				.setAxisLabels("Parameter Value (realtive)","Consistency [a.u.]")
+				.addGraph(name,plot_x,plot_y)
+				.showTiled((int)open_plots.size()-1);
+			if (!words.empty() && words[0]=="Rotation")
+				UtilsQt::Plot(plot_title).setAxisAngularX();
 		}
 		app.progressEnd();
 	}

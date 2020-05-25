@@ -57,10 +57,7 @@ namespace UtilsCuda
 		}
 
 		/// Mimic pointer behavior: Automatic cast to pointer
-		operator T*() {return ptr_d;}
-
-		/// Mimic pointer behavior: Automatic cast to const pointer
-		operator const T*() const {return ptr_d;}
+		operator T*() const {return ptr_d;}
 
 		/// Mimic pointer behavior: Test for validity
 		bool operator!() const {return n<=0||ptr_d<=0;}
@@ -110,6 +107,14 @@ namespace UtilsCuda
 				return true;
 			}
 			return false;
+		}
+
+		void setZero()
+		{
+			if (n>0) {
+				cudaMemset((void*)ptr_d, 0, sizeof(T)*n);
+				cudaCheckState
+			}
 		}
 
 		/// Deallocate previously allocated memory

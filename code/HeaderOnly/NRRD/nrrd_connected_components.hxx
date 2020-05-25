@@ -17,7 +17,7 @@ namespace NRRD {
 		double com[3];
 	};
 
-	// Analyze size and position of components
+	/// Analyze size and position of components
 	template <typename T1>
 	std::map<unsigned short, ConnectedComponent> analyzeCompoents(const NRRD::ImageView<T1>& image, const NRRD::ImageView<unsigned short>& components)
 	{
@@ -80,16 +80,6 @@ namespace NRRD {
 		#pragma omp parallel for
 		for (int i=0;i<l;i++) components[i]=0;
 		
-		// Define neighborhood
-		//struct Offset {
-		//	Offset(int _x, int _y) : x(_x), y(_y) {}
-		//	int x,y;
-		//};
-		//std::vector<Offset> neighborhood;
-		//neighborhood.push_back(Offset( 0, 0));
-		//neighborhood.push_back(Offset(-1, 0));
-		//neighborhood.push_back(Offset( 0,-1));
-		//neighborhood.push_back(Offset(-1,-1));
 		// Iterate over all voxels
 		for (int y=1;y<image.size(1)-1;y++)
 			for (int x=1;x<image.size(0)-1;x++)
@@ -172,26 +162,16 @@ namespace NRRD {
 		NRRD::ImageView<unsigned short>& components)
 	{
 		// Map from a label to a joint label
-		std::map<int,int> labelMap;
-		labelMap[0]=0;
+		std::vector<int> labelMap;
+		labelMap.reserve(128);
+		labelMap.push_back(0);
+
 		// Set components to all inactive
+		components.set(image.size(0),image.size(1),image.size(2));
 		int l=components.length();
 		#pragma omp parallel for
 		for (int i=0;i<l;i++) components[i]=0;
 		
-		// Define neighborhood
-		struct Offset {
-			Offset(int _x, int _y, int _z) : x(_x), y(_y), z(_z) {}
-			int x,y,z;
-		};
-		std::vector<Offset> neighborhood;
-		neighborhood.push_back(Offset(-1,0,0));
-		neighborhood.push_back(Offset(0,-1,0));
-		neighborhood.push_back(Offset(0,0,-1));
-		neighborhood.push_back(Offset(-1,-1,0));
-		neighborhood.push_back(Offset(-1,0,-1));
-		neighborhood.push_back(Offset(0,-1,-1));
-		neighborhood.push_back(Offset(-1,-1,-1));
 		// Iterate over all voxels
 		for (int z=1;z<image.size(2)-1;z++)
 			for (int y=1;y<image.size(1)-1;y++)
@@ -203,21 +183,28 @@ namespace NRRD {
 					if ( negate && (intensity==activeLabel)) continue;
 					// Find lowest component in neighborhood
 					int lowest_neighbor=0;
-					for (auto o=neighborhood.begin();o!=neighborhood.end();++o)
-					{
-						int l=components(x+o->x,y+o->y,z+o->z);
-						while (l!=labelMap[l]) l=labelMap[l];
-						if (l!=0 && (l<lowest_neighbor||lowest_neighbor==0))
-							lowest_neighbor=l;
+					#define FOR_3D_NEIGHBOR(OX,OY,OZ)                        \
+					{                                                        \
+						int l=components(x+OX,y+OY,z+OZ);                    \
+						while (l!=labelMap[l]) l=labelMap[l];                \
+						if (l!=0 && (l<lowest_neighbor||lowest_neighbor==0)) \
+							lowest_neighbor=l;                               \
 					}
+					FOR_3D_NEIGHBOR( 0, 0, 0);
+					FOR_3D_NEIGHBOR(-1, 0, 0);
+					FOR_3D_NEIGHBOR( 0,-1, 0);
+					FOR_3D_NEIGHBOR(-1,-1, 0);
+					FOR_3D_NEIGHBOR( 0, 0,-1);
+					FOR_3D_NEIGHBOR(-1, 0,-1);
+					FOR_3D_NEIGHBOR( 0,-1,-1);
+					FOR_3D_NEIGHBOR(-1,-1,-1);
+					#undef FOR_3D_NEIGHBOR
 					// If no other voxels in neighborhood are active, we find a new label
 					if (lowest_neighbor==0)
 					{
-						int max=0;
-						for (auto i=labelMap.begin();i!=labelMap.end();++i)
-							if (max<i->first) max=i->first; // labelMap.back().first ??
-						max++;
-						components.pixel(x,y,z)=labelMap[max]=max;
+						int max=(int)labelMap.size();
+						labelMap.push_back(max);
+						components.pixel(x,y,z)=max;
 					}
 					else
 					{
@@ -226,32 +213,45 @@ namespace NRRD {
 							lowest_neighbor=labelMap[lowest_neighbor];
 						// We update the neighborhood to have the same index
 						components.pixel(x,y,z)=lowest_neighbor;
-						for (auto o=neighborhood.begin();o!=neighborhood.end();++o) {
-							unsigned short& l=components.pixel(x+o->x,y+o->y,z+o->z);
-							if (l!=0) l=labelMap[l]=lowest_neighbor;
+
+						#define FOR_3D_NEIGHBOR(OX,OY,OZ)                        \
+						{                                                        \
+							unsigned short& l=components.pixel(x+OX,y+OY,z+OZ);  \
+							if (l!=0) l=labelMap[l]=lowest_neighbor;             \
 						}
+						FOR_3D_NEIGHBOR( 0, 0, 0);
+						FOR_3D_NEIGHBOR(-1, 0, 0);
+						FOR_3D_NEIGHBOR( 0,-1, 0);
+						FOR_3D_NEIGHBOR(-1,-1, 0);
+						FOR_3D_NEIGHBOR( 0, 0,-1);
+						FOR_3D_NEIGHBOR(-1, 0,-1);
+						FOR_3D_NEIGHBOR( 0,-1,-1);
+						FOR_3D_NEIGHBOR(-1,-1,-1);
+						#undef FOR_3D_NEIGHBOR
 					}
 				}
+
 		// Finally, iterate over all voxels and update indices to lowest joint component label
+		#pragma omp parallel for
 		for (int i=0;i<l;i++)
 		{
 			int l0=components[i];
 			int orig=l0;
-			while (l0!=labelMap[l0]) l0=labelMap[l0];
+			while (l0!=labelMap[l0]) l0=labelMap[l0]; // 2do max two lookups would be enough
 			labelMap[orig]=l0;
 			components[i]=l0;
 		}
 		// Determine size of components
-		for (auto i=labelMap.begin();i!=labelMap.end();++i) i->second=0;
+		for (auto i=labelMap.begin();i!=labelMap.end();++i) *i=0;
 		for (int i=0;i<l;i++) labelMap[components[i]]++;
 		labelMap[0]=0; // ignore background
 		// Return index and size of largest component
 		int max_px=0;
 		int max_idx=0;
-		for (auto i=labelMap.begin();i!=labelMap.end();++i)
-			if (max_px<i->second) {
-				max_idx=i->first;
-				max_px=i->second;
+		for (int i=0;i<(int)labelMap.size();i++)
+			if (max_px<labelMap[i]) {
+				max_idx=i;
+				max_px=labelMap[i];
 			}
 		return std::pair<int,int>(max_idx,max_px);
 	}

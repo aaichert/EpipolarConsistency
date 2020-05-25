@@ -11,6 +11,8 @@ typedef UtilsCuda::BindlessTexture2D<float> CudaTexture;
 using UtilsQt::Figure;
 using UtilsQt::Plot;
 
+#include "draw_epipolar_lines.hxx"
+
 // A Simple QT Utility to Show a Settings Window
 #include <GetSetGui/GetSetGui.h>
 GetSetGui::Application g_app("VisualizeECC_RadonIntermediate");
@@ -38,12 +40,24 @@ void gui(const GetSetInternal::Node& node)
 		NRRD::Image<float> image1(path1);
 		g_app.progressUpdate(2);
 
+		// Chack if data is ok
+		if (image0.dimension()!=2 || image1.dimension()!=2) {
+			g_app.warn("Failed to Load Input Images", "Images must be uncompressed single-channel projections given 2D NRRD files.");
+			return;
+		}
+		// Load Projection Matrices
+		if (image0.meta_info.find("Projection Matrix")==image0.meta_info.end() || image1.meta_info.find("Projection Matrix")==image1.meta_info.end()) {
+			g_app.warn("Failed to Load Input Images", "The \"Projection Matrix\" tag must be set in the NRRD header.");
+			return;
+		}
+
 		// Get pixel spacing and projection matrices
 		using Geometry::ProjectionMatrix;
 		double spx=GetSet<double>("Epipolar Consistency/Images/Pixel Spacing");
 		ProjectionMatrix P0=stringTo<ProjectionMatrix>(image0.meta_info["Projection Matrix"]);
 		ProjectionMatrix P1=stringTo<ProjectionMatrix>(image1.meta_info["Projection Matrix"]);
-	
+
+
 		// Compute both Radon intermediate functions
 		EpipolarConsistency::RadonIntermediateFunction compute_dtr;
 		using EpipolarConsistency::RadonIntermediate;
@@ -69,49 +83,58 @@ void gui(const GetSetInternal::Node& node)
 		// Slow CPU evaluation for just two views
 		// (usually, you just call ecc.evaluate(...) which uses the GPU to compute metric for all projections)
 		EpipolarConsistency::MetricRadonIntermediate ecc(Ps,rifs);
-		ecc.setdKappa(GetSet<double>    ("Epipolar Consistency/Sampling/Angle Step (deg)")/180*Geometry::Pi);
+		ecc.setdKappa(GetSet<double>("Epipolar Consistency/Sampling/Angle Step (deg)")/180*Geometry::Pi);
 		double inconsistency=ecc.evaluateForImagePair(0,1, &redundant_samples0, &redundant_samples1,&kappas, &rif_samples0, &rif_samples1);
-		
-		// DEBUG ONLY
-		UtilsQt::Figure("A",rif0->data(),0,0,true);
-		UtilsQt::Figure("B",rif1->data(),0,0,true);
-
 		g_app.progressUpdate(6);
 
 		// Visualize redundant signals
 		QColor red(255,0,0);
-		QColor black(0,0,0);
-		Plot plot("ECC using Radon intermediate functions");
+		QColor green(0,255,0);
+		Plot plot("Epipolar Consistency",true);
+		RadonIntermediate::Filter filter=rif0->getFilter();
+		std::string filterName=filter==RadonIntermediate::None?"Line Integrals ":(filter==RadonIntermediate::Derivative?"Derivative (Grangeat)":"Ramp filter (Smith)");
 		plot.graph()
+			.setName("Radon Intermediate 0")
 			.setData((int)kappas.size(),kappas.data(),redundant_samples0.data())
-			.setName("Redundant Samples 0")
-			.setColor(black);
+			.setColor(green);
 		plot.graph()
+			.setName("Radon Intermediate 1")
 			.setData((int)kappas.size(),kappas.data(),redundant_samples1.data())
-			.setName("Redundant Samples 1")
 			.setColor(red);
+		plot.showLegend();
 		plot.setAxisAngularX();
-		plot.setAxisLabels("Epipolar Plane Angle","Radon Intermediate Values [a.u.]");
+		plot.setAxisLabels("Epipolar Plane Angle",filterName +" [a.u.]");
 
 		// Show Radon intermediate functions.
 		rif0->readback();
-		Figure fig0("Radon Intermediate Function 0", rif0->data(),0,0,true);
+		Figure fig0("Radon Intermediate Function 0", rif0->data(),0,0,rif1->getFilter()!=RadonIntermediate::None);
+		fig0.showTiled(0,512,512);
 		rif1->readback();
-		Figure fig1("Radon Intermediate Function 1", rif1->data(),0,0,true);
+		Figure fig1("Radon Intermediate Function 1", rif1->data(),0,0,rif1->getFilter()!=RadonIntermediate::None);
+		fig1.showTiled(1,512,512);
 
-//#ifndef DEBUG
-//		// Show sample locations (slow)
-//		double n_alpha2=0.5*rif0->data().size(0);
-//		double n_t2    =0.5*rif0->data().size(1);
-//		double step_alpha=rif1->getRadonBinSize(0);
-//		double step_t=rif1->getRadonBinSize(1);
-//		for (int i=0; i<(int)rif_samples0.size(); i++)
-//			fig0.drawPoint(rif_samples0[i].first/step_alpha+n_alpha2, rif_samples0[i].second/step_t+n_t2,black);
-//		for (int i=0; i<(int)rif_samples1.size(); i++)
-//			fig1.drawPoint(rif_samples1[i].first/step_alpha+n_alpha2, rif_samples1[i].second/step_t+n_t2,red);
-//#endif
+		// Show projections images.
+		showImages(image0,image1,P0,P1,spx);
 
+		// Show sample locations (slow)
+		double n_alpha1=rif0->data().size(0)-1;
+		double n_t1    =rif0->data().size(1)-1;
+		double step_alpha=rif1->getRadonBinSize(0);
+		int step=(int)rif_samples0.size()/20;
+		for (int i=step,i_old=0; i<(int)rif_samples0.size(); i+=step)
+		{
+			fig0.drawLine(	rif_samples0[i    ].first*n_alpha1, rif_samples0[i    ].second*n_t1,
+							rif_samples0[i_old].first*n_alpha1, rif_samples0[i_old].second*n_t1,green);
+
+			fig1.drawLine(	rif_samples1[i    ].first*n_alpha1, rif_samples1[i    ].second*n_t1,
+							rif_samples1[i_old].first*n_alpha1, rif_samples1[i_old].second*n_t1,red);
+			i_old=i;
+		}
 		g_app.progressEnd();
+
+		// Bring Geometry to front and apply default rotation
+		Figure("Geometry").projectionParameters().setViewingDistance(4500).setAngle(Eigen::Vector4d(-0.7854, 2.356, 0, 0));
+		Figure("Geometry").update();
 	}
 		
 	// Allow user to edit and save plots as pdf
@@ -150,7 +173,7 @@ int main(int argc, char ** argv)
 		"<br>"
 		"See also: "
 		"<br>"
-		"<a href=\"https://www5.cs.fau.de/research/software/epipolar-consistency/\">Pattern Recognition Lab at Technical University of Erlangen-Nuremberg</a> "
+		"<a href=\"https://www5.cs.fau.de/research/software/epipolar-consistency/\">Pattern Recognition Lab at Friedrich-Alexander University of Erlangen-Nuremberg</a> "
 		"<br>"
 		"<h4>Licensed under the Apache License, Version 2.0 (the \"License\")</h4>\n\n"
 		"You may not use this file except in compliance with the License. You may obtain a copy of the License at "

@@ -6,8 +6,6 @@
 
 // Transforming line coordinates
 #include <LibEpipolarConsistency/RectifiedFBCC.h>
-#include <Eigen/Geometry>
-
 
 /// Actual work done in CUDA
 extern void cuda_computeLineIntegrals(

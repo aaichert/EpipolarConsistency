@@ -76,6 +76,24 @@ namespace NRRD
 		return true;
 	}
 
+	/// 3D Convolution for separable kernels. Result written to "img". Work must be same size as input.
+	template <typename T, typename Kernel>	
+	bool convolve3D(NRRD::ImageView<T> &img, int kx, int ky, int kz, Kernel kernelx, Kernel kernely, Kernel kernelz, NRRD::ImageView<T> &work)
+	{
+		if (img.dimension()<3 || work.dimension()<3) return false;
+		int w=img.size(0);
+		int h=img.size(1);
+		int d=img.size(2);
+		if (work.size(0)!=w || work.size(1)!=h || work.size(2)!=d)
+			return false;
+		convolveX(img ,kx,kernelx,work);
+		convolveY(work,ky,kernely,img);
+		convolveZ(img ,kz,kernelz,work);
+		img.copyDataFrom((T*)work);
+		return true; 
+	}
+
+
 	/// 1D Convolution along X. Result written to "out".
 	template <typename T, typename Kernel>
 	bool convolveX(const NRRD::ImageView<T> &img, int kx, Kernel kernelx, NRRD::ImageView<T> &out)
@@ -132,6 +150,34 @@ namespace NRRD
 			}
 		}
 	}
+	
+	/// 1D Convolution along Z. Result written to "out".
+	template <typename T, typename Kernel>
+	bool convolveZ(const NRRD::ImageView<T> &img, int kz, Kernel kernelz, NRRD::ImageView<T> &out)
+	{
+		int w = img.size(0);
+		int h = img.size(1);
+		int d = img.size(2);
+		if (out.size(0) != w || out.size(1) != h || out.size(2) != d)
+			return false;
+		for (int z = 0; z < d; z++)
+		{
+			for (int x = 0; x < w; x++)
+			{
+#pragma omp parallel for
+				for (int y = 0; y < h; y++)
+				{
+					double sum = 0;
+					for (int o = -kz; o < kz; o++)
+					{
+						int zo = clamp(z + o, d - 1);
+						sum += img(x, y, zo)*kernelz[o + kz];
+					}
+					out.pixel(x, y, z) = (T)sum;
+				}
+			}
+		}
+	}
 
 	// Lowpass image filter. Default parameters correspnd to a reduction of image size by 2.
 	template <typename T>
@@ -141,6 +187,17 @@ namespace NRRD
 		auto kernel=NRRD::gaussianKernel(sigma, k);
 		NRRD::convolve2D(img,k,k,kernel.data(),kernel.data(),work);
 	}
+
+	// Lowpass image filter. Default parameters correspnd to a reduction of image size by 2.
+	template <typename T>
+	void lowpass3D(NRRD::ImageView<T> &img, double sigma=1.84, int k=5)
+	{
+		NRRD::Image<T> work(img.size(0),img.size(1),img.size(2));
+		auto kernel=NRRD::gaussianKernel(sigma, k);
+		NRRD::convolve3D(img,k,k,k,kernel.data(),kernel.data(),kernel.data(),work);
+	}
+
+
 
 } // namespace NRRD
 

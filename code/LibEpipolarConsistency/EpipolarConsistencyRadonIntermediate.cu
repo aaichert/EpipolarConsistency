@@ -73,23 +73,14 @@ __device__ float getRedundancy(const float *K, cudaTextureObject_t dtr, float ra
 	// Find corresponding epipolar lines for plane at angle kappa (same as culaut::xgemm<float,3,2,1>(K,x_k,l);)
 	float line[]={K[0]*x0+K[3]*x1,K[1]*x0+K[4]*x1,K[2]*x0+K[5]*x1};
 	
-	// Coonvert line to angle distance and compute texture coordinates to be sampled.
-	lineToSampleDtr(line,range_t);
+	// Convert line to angle distance and compute texture coordinates to be sampled.
+	bool angle_moved_by_pi=lineToSampleDtr(line,range_t);
 
-	// Return zero for lines far outside image
-	if (line[1]<0.f||line[1]>1.0f) return 0.f;
-	
 	// Sample DTR and account for symmetry (up to sign in case of derivative)
-	if (line[0]>1)
-	{
-		line[0]=line[0]-1.f;
-		line[1]=1.f-line[1];
-		if (is_derivative)
+	if (is_derivative)
+		if (angle_moved_by_pi)
 			return -tex2D<float>(dtr,line[0],line[1]);
-		else
-			return +tex2D<float>(dtr,line[0],line[1]);
-	}
-	else return tex2D<float>(dtr,line[0],line[1]);
+	return +tex2D<float>(dtr,line[0],line[1]);
 }
 
 template <bool is_derivative>
@@ -121,25 +112,57 @@ __device__ inline float consistencyForPlusMinusKappa(
 	return (vp*vp + vm*vm)*K0[6];
 }
 
-
 template <bool is_derivative>
+__device__ inline void consistencyForPlusMinusKappa_XCORR(
+		float   kappa,				//< Angle of epipolar plane
+		const float K0[8],			//< Mapping from angle to line 0
+		const float K1[8],			//< Mapping from angle to line 1
+		cudaTextureObject_t dtr0,	//< Radon derivatives
+		cudaTextureObject_t dtr1,	//< Radon derivatives
+		float range_t,				//< Max. distance to center encoded in Radon space
+		float *xyxxyyxy,			//< Intermediate values for correlation computation
+		float one_over_n			//< 1/n, where n is the number of samples (n=2*kappa_max/dkappa)
+	)
+{
+	// Get point on unit circle of two-space for projection to epipolar lines
+	float x_kappa[2];
+	__sincosf(kappa,x_kappa+1,x_kappa);
+
+	// Compare redundant information for +kappa
+
+	float xp=getRedundancy<is_derivative>(K0,dtr0,range_t,x_kappa[0],x_kappa[1]);
+	float yp=getRedundancy<is_derivative>(K1,dtr1,range_t,x_kappa[0],x_kappa[1]);
+
+	// Compare redundant information for -kappa
+	x_kappa[0]*=-1;
+
+	float xm=getRedundancy<is_derivative>(K0,dtr0,range_t,x_kappa[0],x_kappa[1]);
+	float ym=getRedundancy<is_derivative>(K1,dtr1,range_t,x_kappa[0],x_kappa[1]);
+
+	// Accumulate intermediate values for computation of cerrelation coefficient
+	atomicAdd(xyxxyyxy+0 , one_over_n*(xp   +xm   )); // 0 x
+	atomicAdd(xyxxyyxy+1 , one_over_n*(yp   +ym   )); // 1 y
+	atomicAdd(xyxxyyxy+2 , one_over_n*(xp*xp+xm*xm)); // 2 xx
+	atomicAdd(xyxxyyxy+3 , one_over_n*(yp*yp+ym*ym)); // 3 yy
+	atomicAdd(xyxxyyxy+4 , one_over_n*(xp*yp+xm*ym)); // 4 xy
+
+}
+
+template <bool is_derivative, bool use_corr>
 __global__ void kernelEpipolarCosistency(
 		const float *K01s,		  	//< Mapping from [cos(kappa) sin(kappa) to lines 0/1
 		cudaTextureObject_t* dtrs,	//< DTRs as GPU textures
 		float range_t,				//< Max. distance to center encoded in Radon space
 		int num_pairs,				//< Explicit assigment of projection matrices and dtrs. Can be zero.
 		const int *indices,			//< num_indices*4 (P0,P1,dtr0,dtr1). Can be null. If not provided, all n*(n-1)*2 pairs are computed.
-		float *out					//< num_indices result values, unless indices is null. Then nxn matrix. Only sub-diagonal elements are written to.
+		float *out,					//< num_indices result values, unless indices is null. Then nxn matrix. Only sub-diagonal elements are written to.
+		float *out_corr				//< Intermediate values for correlation computation
 	)
 {
 	// Find index of current thread
 	int idx_x = blockIdx.x * blockDim.x + threadIdx.x;
 	int idx_y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (idx_x>num_pairs) return;
-	
-	// Start summation
-	if (idx_y==0)
-		out[idx_x]=0.f;
 
 #ifdef USE_SHARED_MEM_FOR_K01
 	__shared__ float K0[8];
@@ -154,28 +177,47 @@ __global__ void kernelEpipolarCosistency(
 	const float *K0=K01s+idx_x*16;
 	const float *K1=K01s+idx_x*16+8;
 #endif
+	
+	// Start summation and determine weight.
+	if (idx_y==0)
+	{
+		out[idx_x]=0.f;
+		// less than 9° -> zero and greater than 36° -> one. Smooth degree four polynomial in between.
+		const float Pi=3.14159265359f;
+		const float no_contrib=0.05f*Pi, full_contrib=0.2f*Pi;
+		out_corr[use_corr?idx_x*6+5:idx_x]=1.0f; // K0[6]; // 1.0f-weighting((fabs(K0[7]-Pi)-no_contrib)/full_contrib);
+	}
 
 	// Current thread: Compute consistency for epipolar plane of angle +/-kappa
 	float dkappa=K1[6];
+	float kappa_max=K1[7];
 	float kappa=dkappa*0.5f+dkappa*idx_y;
 
 	// Check to see if out of range
-	if (kappa>=K1[7]) return;
+	if (kappa>=kappa_max) return;
 	
 	// Compute consistency
-	float consistency=consistencyForPlusMinusKappa<is_derivative>(kappa,K0,K1,dtrs[indices[4*idx_x+2]],dtrs[indices[4*idx_x+3]],range_t);
-
-	// We assume that the dtrs are zero only when the lines no longer intersect the image planes.
-	atomicAdd(out+idx_x, consistency*dkappa);
+	if (!use_corr)
+	{
+		float consistency=consistencyForPlusMinusKappa<is_derivative>(kappa,K0,K1,dtrs[indices[4*idx_x+2]],dtrs[indices[4*idx_x+3]],range_t);
+		// We assume that the dtrs are zero only when the lines no longer intersect the image planes.
+		atomicAdd(out+idx_x, consistency*dkappa);
+	}
+	else
+	{
+		float *xyxxyyxy=out_corr+idx_x*6;
+		consistencyForPlusMinusKappa_XCORR<is_derivative>(kappa,K0,K1,dtrs[indices[4*idx_x+2]],dtrs[indices[4*idx_x+3]],range_t, xyxxyyxy, kappa_max/kappa);
+	}
 }
 
-template <bool is_derivative>
+template <bool is_derivative, bool use_corr>
 __global__ void kernelEpipolarCosistency(
 		const float *K01s,		  	//< Mapping from [cos(kappa) sin(kappa) to lines 0/1
 		int num_dtrs,				//< Explicit assigment of projection matrices and dtrs. Can be zero.
 		cudaTextureObject_t* dtrs,	//< DTRs as GPU textures
 		float range_t,				//< Max. distance to center encoded in Radon space
-		float *out					//< num_indices result values, unless indices is null. Then nxn matrix. Only sub-diagonal elements are written to.
+		float *out,					//< num_indices result values, unless indices is null. Then nxn matrix. Only sub-diagonal elements are written to.
+		float *out_corr				//< Intermediate values for correlation computation
 	)
 {
 	// Find index of current thread
@@ -188,10 +230,6 @@ __global__ void kernelEpipolarCosistency(
 	// from ij, determine i and j i<j
 	get_ij(idx_x,num_dtrs,i,j);
 
-	// Start summation
-	if (idx_y==0)
-		out[i+j*num_dtrs]=0.f;
-
 #ifdef USE_SHARED_MEM_FOR_K01
 	__shared__ float K0[8];
 	__shared__ float K1[8];
@@ -206,17 +244,35 @@ __global__ void kernelEpipolarCosistency(
 	const float *K1=K01s+idx_x*16+8;
 #endif
 
+	// Start summation
+	if (idx_y==0)
+	{
+		out[i+j*num_dtrs]=0.f;
+		// less than 18° -> zero and greater than 36° -> one. Smooth degree four polynomial in between.
+		const float Pi=3.14159265359f;
+		const float no_contrib=0.05f*Pi, full_contrib=0.2f*Pi;
+		out_corr[use_corr?idx_x*6+5:idx_x]=1.0f; // 1.0f-weighting((fabs(K0[7]-Pi)-no_contrib)/full_contrib);
+	}
+
 	// Current thread: Compute consistency for epipolar plane of angle +/-kappa
 	float dkappa=K1[6];
+	float kappa_max=K1[7];
 	float kappa=dkappa*0.5f+dkappa*idx_y;
 
 	// Check to see if out of range
-	if (kappa>=K1[7]) return;
+	if (kappa>=kappa_max) return;
 
 	// Compute consistency
-	float consistency=consistencyForPlusMinusKappa<is_derivative>(kappa,K0,K1,dtrs[i],dtrs[j],range_t);
-
-	atomicAdd(out+i+j*num_dtrs,consistency*dkappa); 
+	if (!use_corr)
+	{
+		float consistency=consistencyForPlusMinusKappa<is_derivative>(kappa,K0,K1,dtrs[i],dtrs[j],range_t);
+		atomicAdd(out+i+j*num_dtrs,consistency*dkappa);
+	}
+	else
+	{
+		float *xyxxyyxy=out_corr+idx_x*6;
+		consistencyForPlusMinusKappa_XCORR<is_derivative>(kappa,K0,K1,dtrs[i],dtrs[j],range_t, xyxxyyxy, kappa_max/kappa);
+	}
 }
 
 void epipolarConsistency(
@@ -237,7 +293,9 @@ void epipolarConsistency(
 	float *out_d,			//< num_indices result values, unless indices is null. Then nxn matrix. Only sub-diagonal elements are written to.
 	float object_radius_mm,	//< Approximate size of object in mm (determines angular range, can be zero)
 	float dkappa,			//< Angular distance between epipolar planes (can be zero if object_radius_mm and num_samples are given)
-	bool isDerivative		//< If false, nornmal Radon transform, else its derivative
+	bool isDerivative,		//< If false, normal Radon transform, else its derivative
+	bool use_corr,			//< If null, SSD is used as a similarity measure, else correlation coeff is used.
+	float *out_corr_d		//< Temporary memory for weights and NCC computation
 	)
 {
 	cudaCheckState
@@ -285,9 +343,10 @@ void epipolarConsistency(
 	//double t_computeK01=time.getElapsedTime();
 
 	// Distribute problem in a meaningful way: grid with #pairs in x and #angles/1024 in y direction, blocksize (1,1024)
+	const float Pi=3.14159265359f;
 	int max_num_samples=0;
 	if (dkappa<=0.0)
-		max_num_samples=image_diagonal;
+		max_num_samples=(int)image_diagonal;
 	else
 		max_num_samples=(int)(Pi*0.5f/dkappa);
 	block_size.x=4;
@@ -309,17 +368,37 @@ void epipolarConsistency(
 	if (indices_d)
 	{
 		// todo ifs for template parameters
-		if (isDerivative)
-			kernelEpipolarCosistency<true><<<grid_size, block_size>>>( K01s_d, (cudaTextureObject_t *)dtrs_d, n_t*step_t, num_pairs, indices_d, out_d );
+		if (use_corr)
+		{
+			if (isDerivative)
+				kernelEpipolarCosistency<true,true><<<grid_size, block_size>>>( K01s_d, (cudaTextureObject_t *)dtrs_d, n_t*step_t, num_pairs, indices_d, out_d, out_corr_d );
+			else
+				kernelEpipolarCosistency<false,true><<<grid_size, block_size>>>( K01s_d, (cudaTextureObject_t *)dtrs_d, n_t*step_t, num_pairs, indices_d, out_d, out_corr_d );
+		}
 		else
-			kernelEpipolarCosistency<true><<<grid_size, block_size>>>( K01s_d, (cudaTextureObject_t *)dtrs_d, n_t*step_t, num_pairs, indices_d, out_d );
+		{
+			if (isDerivative)
+				kernelEpipolarCosistency<true,false><<<grid_size, block_size>>>( K01s_d, (cudaTextureObject_t *)dtrs_d, n_t*step_t, num_pairs, indices_d, out_d, out_corr_d );
+			else
+				kernelEpipolarCosistency<false,false><<<grid_size, block_size>>>( K01s_d, (cudaTextureObject_t *)dtrs_d, n_t*step_t, num_pairs, indices_d, out_d, out_corr_d );
+		}
 	}
 	else
 	{
-		if (isDerivative)			
-			kernelEpipolarCosistency<true><<<grid_size, block_size>>>( K01s_d, num_dtrs, (cudaTextureObject_t *)dtrs_d, n_t*step_t, out_d );
+		if (use_corr)
+		{
+			if (isDerivative)
+				kernelEpipolarCosistency<true,true><<<grid_size, block_size>>>( K01s_d, num_dtrs, (cudaTextureObject_t *)dtrs_d, n_t*step_t, out_d, out_corr_d );
+			else
+				kernelEpipolarCosistency<false,true><<<grid_size, block_size>>>( K01s_d, num_dtrs, (cudaTextureObject_t *)dtrs_d, n_t*step_t, out_d, out_corr_d );
+		}
 		else
-			kernelEpipolarCosistency<false><<<grid_size, block_size>>>( K01s_d, num_dtrs, (cudaTextureObject_t *)dtrs_d, n_t*step_t, out_d );
+		{
+			if (isDerivative)
+				kernelEpipolarCosistency<true,false><<<grid_size, block_size>>>( K01s_d, num_dtrs, (cudaTextureObject_t *)dtrs_d, n_t*step_t, out_d, out_corr_d );
+			else
+				kernelEpipolarCosistency<false,false><<<grid_size, block_size>>>( K01s_d, num_dtrs, (cudaTextureObject_t *)dtrs_d, n_t*step_t, out_d, out_corr_d );
+		}
 	}
 	cudaDeviceSynchronize();
 	cudaCheckState

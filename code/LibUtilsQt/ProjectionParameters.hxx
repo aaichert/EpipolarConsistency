@@ -30,7 +30,7 @@ namespace UtilsQt {
 		}
 
 		virtual ProjectionParameters& setFOV              (double                 _fov              ) {fov             =_fov             ; return *this;}
-		virtual ProjectionParameters& setViewing_distance (double                 _viewing_distance ) {viewing_distance=_viewing_distance; return *this;}
+		virtual ProjectionParameters& setViewingDistance  (double                 _viewing_distance ) {viewing_distance=_viewing_distance; return *this;}
 		virtual ProjectionParameters& setAngle            (const Eigen::Vector4d& _angle            ) {angle           =_angle           ; return *this;}
 		virtual ProjectionParameters& setCenter           (const Eigen::Vector3d& _center           ) {center          =_center          ; return *this;}
 

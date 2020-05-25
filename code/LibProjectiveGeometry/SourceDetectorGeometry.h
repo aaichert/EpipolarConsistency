@@ -12,18 +12,13 @@ namespace Geometry
 		// Vectors defining a projection matrix
 		RP3Point C;  //< Center of projection (i.e. source position)
 		RP3Point O;  //< Detector origin in three-space
-		RP3Point U;  //< Inifinte point in u-direction
-		RP3Point V;  //< Inifinte point in v-direction
+		RP3Point U;  //< Inifinte point in u-direction (scaled to pixel size)
+		RP3Point V;  //< Inifinte point in v-direction (scaled to pixel size)
 		// Additional related objects for utility
 		RP3Point principal_point_3d;      //< Principal Point in three-space
 		RP3Plane principal_plane;         //< Principal plane
 		RP3Plane image_plane;             //< Image plane
 		RP3Homography central_projection; //< Projection to image plane
-
-		/// Figure out projection by detector coordinate system and source position. Axis vectors should be scaled to the size of one pixel.
-		static ProjectionMatrix makeProjectionMatrix(
-			const Geometry::RP3Point& center_of_projection, const Geometry::RP3Point& detector_origin,
-			const Eigen::Vector3d& u_axis_vector, const Eigen::Vector3d& v_axis_vector);
 
 		/// Figure out source-detector geometry by decomposing a projection matrix
 		SourceDetectorGeometry(const ProjectionMatrix&P, double pixel_spacing);

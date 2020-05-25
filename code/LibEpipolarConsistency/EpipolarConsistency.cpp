@@ -64,7 +64,7 @@ namespace EpipolarConsistency
 		double radius_mm=std::max(estimateObjectRadius(P0,n_u,n_v),estimateObjectRadius(P1,n_u,n_v));
 		auto baseline=join_pluecker(getCameraCenter(P0),getCameraCenter(P1));
 		auto range_kappa=estimateAngularRange(baseline,radius_mm);
-		return (range_kappa.second-range_kappa.first)/std::sqrt(n_u*n_u+n_v*n_v);
+		return 2.0*(range_kappa.second-range_kappa.first)/std::sqrt(n_u*n_u+n_v*n_v);
 	}
 
 	Metric& Metric::setObjectRadius(double radius_mm)

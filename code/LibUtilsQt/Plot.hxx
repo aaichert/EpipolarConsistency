@@ -119,6 +119,25 @@ namespace UtilsQt {
 				QCoreApplication::processEvents();
 		}
 
+		/// Display a Plot as part of a tiled set of plots.
+		Plot& showTiled(int index, int w=0, int h=0)
+		{			
+			int space_w=6;
+			int space_h=38;
+			auto& plot=plotByTitle(title);
+			if (w==0) w=plot.width();
+			if (h==0) h=plot.height();
+			QRect rect=QApplication::desktop()->availableGeometry(&plot);
+			int num_columns=rect.width()/(w+space_w);
+			int index_column=index%num_columns;
+			int index_row=index/num_columns;
+			int win_x=rect.x()+(w+space_w)*index_column;
+			int win_y=rect.y()+(h+space_h)*index_row;
+			plot.move(win_x,win_y);
+			plot.resize(w,h);
+			return *this;
+		}
+
 		/// Save plot in PDF format
 		bool savePdf(const std::string& path)
 		{
@@ -177,6 +196,19 @@ namespace UtilsQt {
 			line->setPen(pen);
 			line->start->setCoords(x, -1e7);
 			line->end  ->setCoords(x,  1e7);
+			return *this;
+		}
+
+		/// Draw a horizontal line at position y.
+		Plot& drawHorizontalLine(float y, QColor color, double thickness)
+		{
+			auto &plot=plotByTitle(title);
+			QCPItemLine *line = new QCPItemLine(&plot);
+			QPen pen(color);
+			pen.setWidthF(thickness);
+			line->setPen(pen);
+			line->start->setCoords( -1e7 , y);
+			line->end  ->setCoords(  1e7 , y);
 			return *this;
 		}
 

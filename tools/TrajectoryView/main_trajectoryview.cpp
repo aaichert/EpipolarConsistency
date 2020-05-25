@@ -51,6 +51,7 @@ std::vector<ProjectionMatrix>	g_Ps;
 
 void loadProjectionMatrices()
 {
+	if (g_camera_view) g_camera_view->graphics.group("Additional Geometry").clear();
 	std::string file=GetSet<>("Trajectory/Projection Matrices");
 	if (file.empty()) return;
 	g_Ps.clear();
@@ -62,6 +63,36 @@ void loadProjectionMatrices()
 		g_Ps=ProjTable::loadProjtableV13(file);
 	else if (extension=="txt")
 		g_Ps=ProjTable::loadProjtable(file);
+	else if (extension=="matrices")
+	{
+		unsigned short w,h,d;
+		std::ifstream matfile(file, std::ios::binary);
+		if (!matfile) {
+			g_app.warn("Failed to Load Projection Matrices", "File not found error.");
+			return;
+		}
+		matfile.seekg(0, std::ios::end);
+		int filesize=(int)matfile.tellg();
+		matfile.seekg(0, std::ios::beg);
+		matfile.read((char*)&w,sizeof(unsigned short));
+		matfile.read((char*)&h,sizeof(unsigned short));
+		matfile.read((char*)&d,sizeof(unsigned short));
+		if (w*h!=12 || w*h*d*sizeof(double)+6 - filesize !=0 ) {
+			std::cout << "filesize = " << filesize << std::endl;
+			std::cout << "expected = " << w*h*d*sizeof(double)+6 << std::endl;
+			g_app.warn("Failed to Load Projection Matrices", "Failed to import projection matrices. Incorect size.");
+			return;
+		}
+		std::vector<Geometry::ProjectionMatrix> Ps(d);
+		matfile.read((char*)&Ps[0],sizeof(double)*w*h*d);
+		if (matfile || matfile.eof() )
+			g_Ps=Ps;
+		else {
+			g_app.warn("Failed to Load Projection Matrices", "File access error.");
+			return;
+		}
+
+	}
 	else
 	{
 		std::map<std::string,std::string> meta;
@@ -81,6 +112,7 @@ void loadProjectionMatrices()
 void updateAdditionalGeometry()
 {
 	std::cout << "Rebuilding scene...\n";
+	GraphicsItems::Group additional_geometry;
 	std::vector<Eigen::Vector4d> pts_red=GetSet<std::vector<Eigen::Vector4d> >("Visualization/Additional Geometry/Points 0");
 	std::vector<Eigen::Vector4d> pts_blu=GetSet<std::vector<Eigen::Vector4d> >("Visualization/Additional Geometry/Points 1");
 	bool points=GetSet<bool>("Visualization/Additional Geometry/Show Points");
@@ -88,20 +120,22 @@ void updateAdditionalGeometry()
 	if (points && !pts_red.empty() && !pts_blu.empty())
 	{
 		// Red Points:
-		auto& scene_pts_red=g_camera_view->graphics.set("Red Points",GraphicsItems::ConvexMesh());
-		auto& scene_pts_blu=g_camera_view->graphics.set("Blue Points",GraphicsItems::ConvexMesh());
+		GraphicsItems::ConvexMesh scene_pts_red;
+		GraphicsItems::ConvexMesh scene_pts_blu;
 		scene_pts_red.p_pos=pts_red;
-		scene_pts_red.p_color=QColor(255,0,0,255);
+		scene_pts_red.p_color=QColor(0,0,255,255);
 		scene_pts_red.p_style=2;
 		// Blue Points:
 		scene_pts_blu.p_pos=pts_blu;
 		scene_pts_blu.p_color=QColor(0,255,0,255);
 		scene_pts_blu.p_style=2;
+		additional_geometry.set("Red Points",scene_pts_red);
+		additional_geometry.set("Blue Points",scene_pts_blu);
 	}
 	int n=std::min((int)pts_red.size(),(int)pts_blu.size());
 	if (lines && n>0)
 	{
-		auto& scene_lines=g_camera_view->graphics.set("Lines",GraphicsItems::ConvexMesh());
+		GraphicsItems::ConvexMesh scene_lines;
 		scene_lines.p_pos.reserve(2*n);
 		scene_lines.l_index.reserve(n);
 		for (int i=0;i<n;i++)
@@ -111,7 +145,9 @@ void updateAdditionalGeometry()
 			scene_lines.l_index.push_back(Eigen::Vector2i(2*i,2*i+1));
 		}
 		scene_lines.l_style=1;
+		additional_geometry.set("Lines",scene_lines);
 	}
+	g_camera_view->graphics.set("Additional Geometry",additional_geometry);
 	std::cout << "Done.\n";
 }
 
@@ -176,20 +212,31 @@ void draw3DVisualization(QPainter &p, QCameraView* c)
 			if (i!=selected_cam)
 				GraphicsItems::ConvexMesh::Camera(g_Ps[i],image_rect,cam_spacing,false,QColor(0,0,0,15)).draw(p,P,1);
 
+	overlay.draw(p,P,1);
+	c->graphics.draw(p,P,1);
+
 	if (selected_cam>=0 && selected_cam<(int)g_Ps.size())
 	{
 		bool P_is_selected_cam = (P*Geometry::getCameraCenter(g_Ps[selected_cam])).normalized()[2]<1e-8;
 		if (!P_is_selected_cam)
 			GraphicsItems::FancyCamera(g_Ps[selected_cam],image_rect,cam_spacing).draw(p,P,1);
+		// Draw projection of world geometry to camera image.
+		auto P_sel=g_Ps[selected_cam];
+		GraphicsItems::Group camera_image;
+		auto source_pos=Geometry::getCameraCenter(P_sel);
+		auto image_plane=Geometry::getCameraImagePlane(P_sel,cam_spacing);
+		camera_image.setTransform(Geometry::centralProjectionToPlane(source_pos,image_plane));
+		camera_image.add(c->graphics);
+		camera_image.draw(p,P,1);
 	}
+
 
 	p.setPen(QColor(0,0,0,255));
 	p.drawText(30,30,GetSet<>("Visualization/Comment").getValue().c_str());
 
-
-	overlay.draw(p,P,1);
-
 }
+		
+void createNorthwestern();
 
 /// Call back function for GUI interaction
 void gui(const GetSetInternal::Node& node)
@@ -197,12 +244,15 @@ void gui(const GetSetInternal::Node& node)
 	const std::string& section=node.super_section;
 	const std::string& key    =node.name;
 
+	if (key=="Update Northwestern")
+		createNorthwestern();
+
 	if (key=="Projection Matrices")
 		loadProjectionMatrices();
 	
 	if (section=="Transform/Temporal Undersampling" && key=="Apply")
 	{
-		int skip=GetSet<int>("Temporal Undersampling/Skip");
+		int skip=GetSet<int>("Transform/Temporal Undersampling/Skip");
 		int start=GetSet<int>("Transform/Temporal Undersampling/Start");
 		int stop=GetSet<int>("Transform/Temporal Undersampling/Stop");
 		if (stop<0||stop>(int)g_Ps.size()) stop=(int)g_Ps.size();
@@ -252,7 +302,7 @@ void gui(const GetSetInternal::Node& node)
 			g_Ps[i]=H*g_Ps[i];
 	}
 
-	if (section=="Additional Geometry")
+	if (section=="Visualization/Additional Geometry")
 		updateAdditionalGeometry();
 
 	if (section=="Trajectory/Generate/RTK Parameters")
@@ -314,6 +364,18 @@ void gui(const GetSetInternal::Node& node)
 			GetSet<>("Visualization/Comment")=summary;
 		}
 	}
+	
+	if (key=="View from Selection")
+	{
+		int selected_cam=GetSet<int>("Visualization/Trajectory Selection");
+		if (selected_cam>=0 && selected_cam<(int)g_Ps.size())
+		{
+			auto numpx=GetSet<Eigen::Vector2i>("Trajectory/Detector Number of Pixels").getValue();
+			UtilsQt::Figure figure("Selected Cam",numpx[0],numpx[1]);
+			figure.setProjectionMatrix(g_Ps[selected_cam]);
+			figure.overlay().add(g_camera_view->graphics);
+		}
+	}
 
 	if (section=="Visualization/Additional Geometry/Bounding Box")
 	{
@@ -363,7 +425,7 @@ void gui(const GetSetInternal::Node& node)
 	if (key=="Open...")
 	{
 		std::string path=GetSet<>("Trajectory/Projection Matrices");
-		std::string new_path=QFileDialog::getOpenFileName(0x0, "Open Trajectory", path.c_str(), "One Matrix Per Line (*.ompl);;Siemens Projtable (*.txt);;Siemens Projtable V1.3 (*.xml);;All Files (*)").toStdString();
+		std::string new_path=QFileDialog::getOpenFileName(0x0, "Open Trajectory", path.c_str(), "One Matrix Per Line (*.ompl);;Siemens Projtable (*.txt);;CERA raw matrices (*.matrices);;Siemens Projtable V1.3 (*.xml);;All Files (*)").toStdString();
 		if (new_path.empty()) return;
 		GetSet<>("Trajectory/Projection Matrices")=new_path;
 	}
@@ -586,7 +648,8 @@ void gui(const GetSetInternal::Node& node)
 			source_distance.setAxisLabels("Projection Index","Distance [mm]").showLegend();
 		}
 	}
-	
+
+
 	if (hasPrefix(node.super_section,"Transform/Geometry"))
 	{
 		using namespace Geometry;
@@ -597,37 +660,57 @@ void gui(const GetSetInternal::Node& node)
 		auto p3d=LibOpterix::index_prefix(ModelSimilarity3D::ParameterNames());
 		if (node.name=="Reset")
 		{
+			g_app.ignoreNotifications(true);
 			Section("2D Parameters", geometry).setMultipleKeys<double>(std::vector<double>(p2d.size(),0.0), p2d );
 			Section("3D Parameters", geometry).setMultipleKeys<double>(std::vector<double>(p3d.size(),0.0), p3d );
-			GetSet<>("Trajectory/Projection Matrices")=GetSet<>("Trajectory/Projection Matrices").getValue();
+			GetSet<Eigen::Matrix3d>("2D Transform", geometry)=Eigen::Matrix3d::Identity();
+			GetSet<Eigen::Matrix4d>("3D Transform", geometry)=Eigen::Matrix4d::Identity();
+			overlay.clear();
+			g_app.ignoreNotifications(false);
+			GetSet<>("Trajectory/Projection Matrices")=GetSet<>("Trajectory/Projection Matrices");
 		}
 
-		std::vector<double> parametrs_2D=Section("2D Parameters", geometry).getMultipleKeys<double>(p2d);
-		std::vector<double> parametrs_3D=Section("3D Parameters", geometry).getMultipleKeys<double>(p3d);
+		if (hasPrefix(node.super_section,"Transform/Geometry/2D Parameters"))
+		{
+			std::vector<double> parametrs_2D=Section("2D Parameters", geometry).getMultipleKeys<double>(p2d);
+			GetSet<Eigen::Matrix3d>("2D Transform", geometry)=ModelSimilarity2D().setValues(parametrs_2D.data()).getInstance();
+		}
 
-		RP2Homography H=ModelSimilarity2D().setCurrentValues(parametrs_2D.data()).getInstance();
-		RP3Homography T=ModelSimilarity3D().setCurrentValues(parametrs_3D.data()).getInstance();
-		std::cout << "H=\n" << H << "\n" << "T=\n" << T << "\n\n";
-		if (H.isIdentity() && T.isIdentity()) return;
+		if (hasPrefix(node.super_section,"Transform/Geometry/3D Parameters"))
+		{
+			std::vector<double> parametrs_3D=Section("3D Parameters", geometry).getMultipleKeys<double>(p3d);
+			GetSet<Eigen::Matrix4d>("3D Transform", geometry)=ModelSimilarity3D().setValues(parametrs_3D.data()).getInstance();
+		}
+
 		if (node.name=="Apply")
 		{
+			auto H=GetSet<Eigen::Matrix3d>("2D Transform", geometry).getValue();
+			auto T=GetSet<Eigen::Matrix4d>("3D Transform", geometry).getValue();
 			for (int i=0;i<(int)g_Ps.size();i++)
 				g_Ps[i]=H*g_Ps[i]*T;
 			GetSetIO::debug_print(geometry);
 			overlay.clear();
 		}
-		else
+		
+		if (node.name=="2D Transform" || node.name=="3D Transform")
 		{
-			// Get stuff related to drawing from GUI
-			double cam_spacing=GetSet<double>("Trajectory/Detector Pixel Spacing [mm per px]");
-			auto cam_size=GetSet<Eigen::Vector2i>("Trajectory/Detector Number of Pixels").getValue();
-			auto image_rect=Eigen::Vector4d(0,0,cam_size[0],cam_size[1]);
-			int increment=1+GetSet<int>("Visualization/Trajectory Skip Projections");
-			// perview...
-			overlay.clear();
-			if (increment>0) 
-				for (int i=0; i<(int)g_Ps.size(); i+=increment)
-						overlay.add(GraphicsItems::ConvexMesh::Camera(H*g_Ps[i]*T,image_rect,cam_spacing,false,QColor(0,0,255,10)));
+			auto H=GetSet<Eigen::Matrix3d>("2D Transform", geometry).getValue();
+			auto T=GetSet<Eigen::Matrix4d>("3D Transform", geometry).getValue();
+			if (!T.isIdentity() || !H.isIdentity())
+			{
+				// Get stuff related to drawing from GUI
+				double cam_spacing=GetSet<double>("Trajectory/Detector Pixel Spacing [mm per px]");
+				auto cam_size=GetSet<Eigen::Vector2i>("Trajectory/Detector Number of Pixels").getValue();
+				auto image_rect=Eigen::Vector4d(0,0,cam_size[0],cam_size[1]);
+				int increment=1+GetSet<int>("Visualization/Trajectory Skip Projections");
+				// perview...
+				overlay.clear();
+				if (increment>0) 
+					for (int i=0; i<(int)g_Ps.size(); i+=increment)
+							overlay.add(GraphicsItems::ConvexMesh::Camera(H*g_Ps[i]*T,image_rect,cam_spacing,false,QColor(0,0,255,10)));
+			}
+			else
+				overlay.clear();
 		}
 	}
 
@@ -636,12 +719,63 @@ void gui(const GetSetInternal::Node& node)
 	g_app.saveSettings();
 }
 
+void createNorthwestern()
+{
+	GetSetGui::Section nw("Trajectory/Create Northwestern Style Trajectory");
+	auto C=Geometry::finitePoint(GetSet<Eigen::Vector3d>("Source Position [mm]",nw).getValue());
+	auto O=Geometry::finitePoint(GetSet<Eigen::Vector3d>("Detector/Origin [mm]",nw).getValue());
+	auto U=GetSet<Eigen::Vector3d>("Detector/Axis Direction U",nw).getValue().normalized();
+	auto V=GetSet<Eigen::Vector3d>("Detector/Axis Direction V",nw).getValue().normalized();
+	GetSet<Eigen::Vector3d>("Detector/Axis Direction U",nw)=U;
+	GetSet<Eigen::Vector3d>("Detector/Axis Direction V",nw)=V;
+
+	// scale U and V to pixel size
+	auto S=GetSet<Eigen::Vector2d>("Detector/Size [mm]",nw).getValue();
+	auto N=GetSet<Eigen::Vector2i>("Projections/Image Size [px]",nw).getValue().cast<double>();
+	U*=S[0]/N[0];
+	V*=S[1]/N[1];
+	GetSet<double>("Trajectory/Detector Pixel Spacing [mm per px]")=(U.norm()+V.norm())*0.5;
+	// Finally make first projection matrix
+	Geometry::SourceDetectorGeometry sdg(C,O,U,V);
+	Geometry::ProjectionMatrix P=sdg.projectionMatrix();
+
+	// Then make the others...
+	int n=GetSet<int>("Projections/Number of Projections",nw);
+	double a=GetSet<double>("Projections/Angle Coverage [deg]",nw)/180.*Geometry::Pi;
+
+	std::vector<Geometry::ProjectionMatrix> Ps;
+	for (int i=0;i<n;i++)
+		Ps.push_back(P*Geometry::RotationZ(i*a/n));
+
+	// Update View
+	g_Ps=Ps;
+	GetSet<int>("Visualization/Trajectory Selection")=0;
+	GetSet<int>("Visualization/Trajectory Skip Projections") = 0;
+
+}
+
 /// Define GUI and start 3D visualization
 int main(int argc, char ** argv)
 {
+	// "Create Northwestern Style"
+	GetSetGui::Section nw("Trajectory/Create Northwestern Style Trajectory");
+	GetSet<Eigen::Vector3d>("Source Position [mm]",nw)=Eigen::Vector3d(1000,0,0);
+	GetSet<Eigen::Vector2i>("Projections/Image Size [px]",nw)=Eigen::Vector2i(3000,3000);
+	GetSet<int>("Projections/Number of Projections",nw)=180;
+	GetSet<double>("Projections/Angle Coverage [deg]",nw)=360;
+	GetSet<Eigen::Vector3d>("Detector/Origin [mm]",nw)=Eigen::Vector3d(-420,-0.5*432,432);
+	GetSet<Eigen::Vector2d>("Detector/Size [mm]",nw)=Eigen::Vector2d(432,432);
+	GetSet<Eigen::Vector3d>("Detector/Axis Direction U",nw)=Eigen::Vector3d(0,1,0);
+	GetSet<Eigen::Vector3d>("Detector/Axis Direction V",nw)=Eigen::Vector3d(0,0,-1);
+	GetSetGui::Section("Detector",nw).setGrouped();
+	GetSetGui::Section("Projections",nw).setGrouped();
+	GetSetGui::Button("Update Northwestern",nw)="Make Trajectory";
+
+
 	// Visualization
 	GetSet<int>("Visualization/Trajectory Selection")=0;
 	GetSet<int>("Visualization/Trajectory Skip Projections") = 0;
+	GetSetGui::Button("Visualization/View from Selection")="View from Here";
 
 	// Visualization (Additional Geometry)
 	GetSet<Eigen::Vector3d>("Visualization/Additional Geometry/Bounding Box/Min").setString("-50 -50 -50");
@@ -679,6 +813,8 @@ int main(int argc, char ** argv)
 		Button("Actions/Reset" , geometry).setDescription("Resets the parameters to identity."      ) = "Reset...";
 		Section("2D Parameters", geometry).setGrouped().getMultipleKeys<double>(index_prefix(ModelSimilarity2D::ParameterNames()));
 		Section("3D Parameters", geometry).setGrouped().getMultipleKeys<double>(index_prefix(ModelSimilarity3D::ParameterNames()));
+		GetSet<Eigen::Matrix3d>("2D Transform", geometry).setString("");
+		GetSet<Eigen::Matrix4d>("3D Transform", geometry).setString("");
 		geometry.subsection("Actions").setGrouped();
 	}
 	
@@ -747,7 +883,7 @@ int main(int argc, char ** argv)
 		"<br>"
 		"See also: "
 		"<br>"
-		"<a href=\"https://www5.cs.fau.de/research/software/epipolar-consistency/\">Pattern Recognition Lab at Technical University of Erlangen-Nuremberg</a> "
+		"<a href=\"https://www5.cs.fau.de/research/software/epipolar-consistency/\">Pattern Recognition Lab at Friedrich-Alexander University of Erlangen-Nuremberg</a> "
 		"<br>"
 		"<h4>Licensed under the Apache License, Version 2.0 (the \"License\")</h4>\n\n"
 		"You may not use this file except in compliance with the License. You may obtain a copy of the License at "
@@ -759,14 +895,27 @@ int main(int argc, char ** argv)
 	g_app.ignoreNotifications(false);
 	auto cube_min=GetSet<Eigen::Vector3d>("Visualization/Additional Geometry/Bounding Box/Min").getValue();
 	auto cube_max=GetSet<Eigen::Vector3d>("Visualization/Additional Geometry/Bounding Box/Max").getValue();
+
+	// Transform Cube
+	GetSetGui::Section geometry("Transform/Geometry");
+	GetSet<Eigen::Matrix4d> T("3D Transform", geometry);
+	Eigen::Matrix4d T_inv=T.getValue().inverse();
+
+	// Transformed 3D geometry
+	GraphicsItems::Group geom3d;
+	geom3d.set("CoSy", GraphicsItems::CoordinateAxes(GetSet<double>("Visualization/Additional Geometry/Coordinate Axes Length")));
+	geom3d.setTransform(T_inv);
+	g_camera_view->graphics.set("geom3d",geom3d);
 	g_camera_view->graphics.set("Bounding Box",GraphicsItems::ConvexMesh::Cube(cube_min,cube_max));
-	g_camera_view->graphics.set("CoSy", GraphicsItems::CoordinateAxes(GetSet<double>("Visualization/Additional Geometry/Coordinate Axes Length")));
+
+	//
 	auto spacing=GetSet<double>("Trajectory/Detector Pixel Spacing [mm per px]").getValue();
 	auto detector_size=GetSet<Eigen::Vector2i>("Trajectory/Detector Number of Pixels").getValue();
 	g_camera_view->setDrawFunc(draw3DVisualization);
 	g_camera_view->setCloseFunc(QCoreApplication::quit);
 	g_camera_view->show();
 
+#ifdef WIN32
 	// Main window
 	QMainWindow *main=new QMainWindow();
 	main->setCentralWidget(g_camera_view);
@@ -776,6 +925,9 @@ int main(int argc, char ** argv)
 	dock->setFeatures( QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetVerticalTitleBar );
 	main->resize(1200,600);
 	main->show();
+#else
+	// LINUX
+#endif 
 
 	// Set up projection
 	loadProjectionMatrices();

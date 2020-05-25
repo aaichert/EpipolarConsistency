@@ -28,7 +28,7 @@ cuda_add_library(LibEpipolarConsistency
 	RadonIntermediate.cu
 	OPTIONS -DHAS_CUDA="Cuda Support"
 )
-target_link_libraries(LibEpipolarConsistency LibProjectiveGeometry LibUtilsCuda)
+target_link_libraries(LibEpipolarConsistency LibProjectiveGeometry LibUtilsCuda ${CUDA_CUFFT_LIBRARIES} )
 install(FILES EpipolarConsistencyCommon.hxx EpipolarConsistency.h EpipolarConsistencyDirect.h RectifiedFBCC.h RadonIntermediate.h EpipolarConsistencyRadonIntermediate.h DESTINATION include/LibEpipolarConsistency)
 install(TARGETS LibEpipolarConsistency DESTINATION lib EXPORT LibEpipolarConsistency-targets)
 install(EXPORT LibEpipolarConsistency-targets DESTINATION cmake)
@@ -55,9 +55,14 @@ add_library(LibEpipolarConsistencyGui
 	# Registration
 	Gui/Registration.h
 	Gui/Registration.cpp
+	# ECC optimization over one input image given several reference images
+	# (e.g. one by one optimimization for FDCT or tracking of Fluoro sequence)
+	Gui/SingleImageMotion.hxx
+	# (Inefficiant but simple) implementation of ECC motion correction in FDCT
+	Gui/FDCTMotionCorrection.hxx
 )
 target_link_libraries(LibEpipolarConsistencyGui LibEpipolarConsistency LibProjectiveGeometry LibUtilsQt GetSet GetSetGui)
-install(FILES Gui/PreProccess.h Gui/ComputeRadonIntermediate.hxx Gui/MotionCompenstation.h Gui/Visualization.h Gui/DisplayGeometry.hxx DESTINATION include/LibEpipolarConsistency/Gui)
+install(FILES Gui/PreProccess.h Gui/ComputeRadonIntermediate.hxx Gui/Visualization.h Gui/DisplayGeometry.hxx Gui/SingleImageMotion.hxx Gui/FDCTMotionCorrection.hxx DESTINATION include/LibEpipolarConsistency/Gui)
 install(TARGETS LibEpipolarConsistencyGui DESTINATION lib EXPORT LibEpipolarConsistencyGui-targets)
 install(EXPORT LibEpipolarConsistencyGui-targets DESTINATION cmake)
 set_property(TARGET LibEpipolarConsistencyGui PROPERTY FOLDER "EpipolarConsistency") 

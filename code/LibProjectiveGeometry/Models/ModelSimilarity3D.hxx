@@ -8,7 +8,6 @@
 
 #include <Eigen/Geometry>
 
-
 namespace Geometry {
 	// Parametrization for a similarity transformation of 3-space
 	struct ModelSimilarity3D : public LibOpterix::ParameterModel<Geometry::RP3Homography>
@@ -57,7 +56,6 @@ namespace Geometry {
 			return sets;
 		}
 		
-
 		ModelSimilarity3D(std::set<int> _active=std::set<int>())
 			: LibOpterix::ParameterModel<Geometry::RP3Homography>(ParameterNames(),_active)
 		{}

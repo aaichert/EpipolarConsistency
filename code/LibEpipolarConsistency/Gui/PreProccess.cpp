@@ -1,6 +1,9 @@
 #include "PreProccess.h"
 #include <NRRD/nrrd_lowpass.hxx>
 
+#include <random>
+
+
 /// f(x)=1-x^2+x^4 is zero at +/-1, has zero derivative at +/-1 and a maxiumum at f(0)=1; Values outside [-1,1] are clamped to zero. 
 inline double weighting(double x)
 {
@@ -24,6 +27,7 @@ namespace EpipolarConsistency
 		GetSet<bool>           ("Geometry/Flip v-Axis"            , section, image_geometry.flip_v    );
 		GetSet<Eigen::Vector4i>("Border/Zero Border"              , section, border.zero              );
 		GetSet<Eigen::Vector4i>("Border/Feather"                  , section, border.feather           );
+		GetSet<std::vector<Eigen::Vector4i> >("Border/Blanks"     , section, border.blanks            );
 		section.subsection("Intensity"      ).setCollapsed();
 		section.subsection("Lowpass Filter" ).setGrouped();
 		section.subsection("Geometry"       ).setCollapsed();
@@ -47,6 +51,7 @@ namespace EpipolarConsistency
 		image_geometry.flip_v    =GetSet<bool>           ("Geometry/Flip v-Axis"            ,section);
 		border.zero              =GetSet<Eigen::Vector4i>("Border/Zero Border"              ,section);
 		border.feather           =GetSet<Eigen::Vector4i>("Border/Feather"                  ,section);
+		border.blanks            =GetSet<std::vector<Eigen::Vector4i> >("Border/Blanks"     ,section);
 	}
 
 	void PreProccess::process(NRRD::ImageView<float>& img) const 
@@ -104,6 +109,12 @@ namespace EpipolarConsistency
 			for (int x = 0; x < img.size(0); x++)
 				img.pixel(x, b, 0) *= b <= border.zero[3] ? 0 : (float)weighting(1 - (float)(b - border.zero[3]) / border.feather[3]);
 
+		// blanks
+		for (auto blank=border.blanks.begin(); blank!=border.blanks.end();++blank)
+			for (int y = std::max(0,(*blank)[1]); y < img.size(0) && y < (*blank)[3]; y++)
+				for (int x = std::max(0,(*blank)[0]); x < img.size(0) && x < (*blank)[2]; x++)
+					img.pixel(x, y, 0) = 0;
+
 		// Flip u/v images
 		int  w = img.size(0);
 		int  h = img.size(1);
@@ -119,6 +130,12 @@ namespace EpipolarConsistency
 				for (int x = 0; x < w; x++)
 					std::swap(img.pixel(x, y), img.pixel(x, h-1-y));
 		}
+		
+		//// Apply Gaussian noise (experiments only)
+		//std::default_random_engine generator;
+		//std::normal_distribution<double> dist(0, 0.1);
+		//for (int i = 0; i < l; i++)
+		//	img[i]+=dist(generator);
 
 		// Apply low-pass
 		if (lowpass.gaussian_sigma>0 && lowpass.half_kernel_width>1)
@@ -143,7 +160,7 @@ namespace EpipolarConsistency
 				auto &pixel=image.pixel(u,v);
 				float pou=(float)u-ppu;
 				float pov=(float)v-ppv;
-				float cos_weight=sdd_px/sqrtf(pou*pou+pov*pov+sdd_px*sdd_px);
+				float cos_weight=sdd_px/std::sqrtf(pou*pou+pov*pov+sdd_px*sdd_px);
 				pixel*=cos_weight;
 			}
 	}

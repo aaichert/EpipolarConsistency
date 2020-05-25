@@ -182,7 +182,7 @@ namespace EpipolarConsistency {
 		/// Load and pre-compute projection images and compute Radon transform
 		// Compute Derivtaives of Radon transform
 		std::vector<std::string> output_files;
-		for (int i=0; i<n; i++)
+		for (int i=0; i<n; i+=advanced.skip_projections)
 		{
 			//
 			// Pre-Processing
@@ -257,7 +257,6 @@ namespace EpipolarConsistency {
 	InputDataDirectGui::InputDataDirectGui(const GetSetGui::Section& section, GetSetGui::ProgressInterface* app)
 		: GetSetGui::Object(section,app)
 		, InputDataDirect()
-		, stack(0x0)
 	{
 		gui_declare_section(section);
 	}
@@ -273,7 +272,6 @@ namespace EpipolarConsistency {
 		InputDataDirect::gui_declare_section(section);
 		gui_ignore_notify(false);
 	}
-
 
 	void InputDataDirectGui::gui_notify(const std::string& section, const GetSetInternal::Node& node)
 	{

@@ -330,7 +330,7 @@ namespace Geometry
 	}
 
 	/// A mapping T from a 3D point to a plane E via central projection from C. T*X=meet(join(C,X),E)
-	inline RP3Homography centralProjectionToPlane(const RP3Point& C, const RP3Point& E)
+	inline RP3Homography centralProjectionToPlane(const RP3Point& C, const RP3Plane& E)
 	{
 		Eigen::Matrix4d P;
 		P << 
@@ -433,6 +433,36 @@ namespace Geometry
 			  0,   0, 1, 0,
 			  0,   0, 0, 1;
 		return R;
+	}
+
+	/// Homogeneous 3D affine (or rigid for R rotation) transformaion
+	inline RP3Homography Affine(const Eigen::Matrix3d& R, const Eigen::Vector3d& t)
+	{
+		RP3Homography T;
+		T.block<3,3>(0,0)=R;
+		T.block<3,1>(0,3)=t;
+		return T;
+	}
+
+	/// Rotation from Euler angles
+	inline RP3Homography Euler(const Eigen::Vector3d& euler_angles)
+	{
+		return Geometry::RotationX(euler_angles[0])*Geometry::RotationY(euler_angles[1])*Geometry::RotationZ(euler_angles[2]);
+	}
+	
+	/// Euler angles from Rotation
+	inline Eigen::Vector3d Euler(const Eigen::Matrix3d& R)
+	{
+		double ry=asin(R(0,2));
+		double rz=acos(R(0,0)/cos(ry));
+		double rx=acos(R(2,2)/cos(ry));
+		return Eigen::Vector3d(rx, ry, ry);
+	}
+
+	/// Euler angles from Rotation
+	inline Eigen::Vector3d Euler(const RP3Homography& R)
+	{
+		return Euler(R.block<3,3>(0,0).eval());
 	}
 
 	/// Homogeneous translation

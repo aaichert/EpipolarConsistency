@@ -1,5 +1,5 @@
-#ifndef _ecc_motioncompenstation_hxx
-#define _ecc_motioncompenstation_hxx
+#ifndef _ecc_single_image_motion_hxx
+#define _ecc_single_image_motion_hxx
 
 #include <LibOpterix/Opterix.hxx>
 
@@ -93,4 +93,4 @@ namespace EpipolarConsistency {
 
 } // EpipolarConsistency
 
-#endif // _ecc_motioncompenstation_hxx
+#endif // _ecc_single_image_motion_hxx

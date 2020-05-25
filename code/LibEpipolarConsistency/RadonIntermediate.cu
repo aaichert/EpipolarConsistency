@@ -3,6 +3,8 @@
 
 #include <LibUtilsCuda/CudaMemory.h>
 
+#include <cufft.h>
+
 __constant__ float Pi=3.14159265359;
 
 // Make sure a point is within rectangle [0,0]-[n_u n_v]
@@ -27,7 +29,7 @@ __device__ __host__ inline void sort4(float *v)
 
 // Transform image into Radon space and coppute angular derivative
 template <bool derivative>
-__global__ void radonDerivative(cudaTextureObject_t tex, float n_u, float n_v, float *out, int n_alpha, int n_t)
+__global__ void radonDerivative(cudaTextureObject_t tex, float n_u, float n_v, float *out, int n_alpha, int n_t, short post_process)
 {
 	// Compute bin index in image of Radon transform and corresponding line
 	int   idx;
@@ -63,7 +65,7 @@ __global__ void radonDerivative(cudaTextureObject_t tex, float n_u, float n_v, f
 		d[1]=-l[0];
 	}
 
-	// Compute range at which the line intersects the image.
+	// Compute range over which the line intersects the image.
 	float t,t_max;
 	{
 		float ts[]={
@@ -120,13 +122,31 @@ __global__ void radonDerivative(cudaTextureObject_t tex, float n_u, float n_v, f
 			sumo+=tex2D<float>(tex,o[0]+t*d[0]+d[1],o[1]+t*d[1]-d[0]);
 		}
 		// and return difference (approximation to derivative)
-		out[idx]=(sum-sumo)*step;
+		if (post_process==1) {
+			float result=(sum-sumo)*step;
+			if (result<0)
+				out[idx]=-sqrt(-result);
+			else
+				out[idx]=sqrt(result);
+		}
+		else if (post_process==2) {
+			float result=(sum-sumo)*step;
+			if (result<0)
+				out[idx]=-log(-result+1);
+			else
+				out[idx]=log(result+1);
+		}
+		else
+			out[idx]=(sum-sumo)*step;
 	}
 
 }
 
-/// Computed Radon derivative and returns n_t*n_alpha array in out_d (device array).
-void computeDerivLineIntegrals(cudaTextureObject_t in, int n_u, int n_v, int n_alpha, int n_t, bool is_derivative, float *out_d)
+// Predcl of ramp filter for Smith DCC
+void apply1DRampFilter(float* radon_transform_d, int n_alpha, int n_t);
+
+/// Computed Radon intermediate function and returns n_t*n_alpha array in out_d (device array). Applied filter (Derivative=0, Ramp=1, None=2)
+void computeDerivLineIntegrals(cudaTextureObject_t in, int n_u, int n_v, int n_alpha, int n_t, int filter, int post_process, float *out_d)
 {
 	cudaCheckState
 	// Threads per block and problem size
@@ -137,10 +157,82 @@ void computeDerivLineIntegrals(cudaTextureObject_t in, int n_u, int n_v, int n_a
 	grid_size.x = iDivUp(n_alpha,block_size.x);
 	grid_size.y = iDivUp(n_t,block_size.y);
 	// Start kernel (radon transform)
-	if (is_derivative)
-		radonDerivative<true><<<grid_size, block_size>>>(in, (float)n_u, (float)n_v, out_d, n_alpha, n_t);
+	if (filter==0)
+		radonDerivative<true><<<grid_size, block_size>>>(in, (float)n_u, (float)n_v, out_d, n_alpha, n_t, (short)post_process);
 	else
-		radonDerivative<false><<<grid_size, block_size>>>(in, (float)n_u, (float)n_v, out_d, n_alpha, n_t);
+		radonDerivative<false><<<grid_size, block_size>>>(in, (float)n_u, (float)n_v, out_d, n_alpha, n_t, (short)post_process);
 	cudaDeviceSynchronize();
 	cudaCheckState
+
+	if (filter==1)
+		apply1DRampFilter(out_d, n_alpha, n_t);
+
 }
+
+// Multiply ramp and scale
+__global__ void ramp_filter1D(cufftComplex *ftrt, int n_alpha, int n_theta, float scale)
+{
+	int ix = blockIdx.x * blockDim.x + threadIdx.x;
+	int iy = blockIdx.y * blockDim.y + threadIdx.y;
+	if (ix>=n_alpha) return;
+	if (iy>=n_theta) return;
+	int idx=iy*n_alpha+ix;
+
+	ftrt[idx].x*=iy*scale;
+	ftrt[idx].y*=iy*scale;
+}
+
+///
+void apply1DRampFilter(float* radon_transform_d, int n_alpha, int n_t)
+{
+	cudaCheckState
+
+    // Device side output data allocation
+    cufftComplex *fourier_transforms_of_radon_transform_columns_d;
+	int n_theta=n_t/2 + 1;
+	cudaMalloc((void**)&fourier_transforms_of_radon_transform_columns_d, n_theta*n_alpha*sizeof(cufftComplex));
+	cudaCheckState
+
+	// n_alpha batched 1D FFTs over n_t elemenets in the SLOW image direction (hence a stride of n_alpha);
+	cufftHandle plan;
+	cufftPlanMany(&plan,
+		1, &n_t,              // request 1D FFTs of size n_t
+		&n_t, n_alpha, 1,     // stride and distance between batches (input) ; in this case interleaved storage, so stride is larger than batch distance.
+		&n_theta, n_alpha, 1, // stride and distance between batches (output); in this case interleaved storage, so stride is larger than batch distance.
+		CUFFT_R2C,            // we convert real to complex
+		n_alpha);             // number of FFTs
+	cudaCheckState
+    cufftExecR2C(plan, radon_transform_d, fourier_transforms_of_radon_transform_columns_d);
+	cudaDeviceSynchronize();
+    cufftDestroy(plan);
+	cudaCheckState
+
+	// Threads per block and problem size
+	dim3 block_size;
+	block_size.x=8;
+	block_size.y=32;
+	dim3 grid_size;
+	grid_size.x = iDivUp(n_alpha,block_size.x);
+	grid_size.y = iDivUp(n_theta,block_size.y);
+
+	// Kernel for multiplication with ramp and appropriate scaling.
+	ramp_filter1D<<<grid_size, block_size>>>(fourier_transforms_of_radon_transform_columns_d, n_alpha, n_theta, -0.5f/(n_t*n_theta) );
+	cudaCheckState
+
+	// Execute inverse FFTs
+	cufftPlanMany(&plan,
+		1, &n_t,              // request 1D FFTs of size n_t
+		&n_theta, n_alpha, 1, // stride and distance between batches (input) ; in this case interleaved storage, so stride is larger than batch distance.
+		&n_t, n_alpha, 1,     // stride and distance between batches (output); in this case interleaved storage, so stride is larger than batch distance.
+		CUFFT_C2R,            // we convert real to complex
+		n_alpha);             // number of FFTs
+	cudaCheckState
+
+	// Clean up
+	cufftExecC2R(plan, fourier_transforms_of_radon_transform_columns_d, radon_transform_d);
+	cudaDeviceSynchronize();
+    cufftDestroy(plan);
+    cudaFree(fourier_transforms_of_radon_transform_columns_d);
+	cudaCheckState
+}
+

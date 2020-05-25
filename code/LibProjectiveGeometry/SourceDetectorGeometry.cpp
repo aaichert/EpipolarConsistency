@@ -1,6 +1,11 @@
 
 #include "SourceDetectorGeometry.h"
-#include <eigen3/Eigen/Geometry>
+#include "EstimateProjectionMatrix.h"
+
+
+#include <iostream> // TODO remove
+
+
 
 namespace Geometry
 {
@@ -20,13 +25,13 @@ namespace Geometry
 		Eigen::Vector3d m3=P_star.block<1,3>(2,0);
 		// Account for left-handed coordinate systems if desired
 		// Get axis directions (unit vectors, scaled to pixels)
-		U=infinitePoint(m2.cross(m3).normalized())*pixel_spacing;
-		V=infinitePoint(m1.cross(m3).normalized())*pixel_spacing;
+		U=infinitePoint(m3.cross(m2).normalized())*pixel_spacing;
+		V=infinitePoint(m3.cross(m1).normalized())*pixel_spacing;
 		// The principal plane contains the center of projection and is orthogonal to the axes
 		principal_plane=P_star.block<1,4>(2,0);
 		// Focal length in millimeters, assuming it is identical in U and V
 		Eigen::Vector3d V_dir=V.head(3)/ pixel_spacing;
-		double f=m1.dot(m3.cross(V_dir));
+		double f=m1.dot(V_dir.cross(m3));
 		// The image plane is parallel to the principal plane at a distance of f (focal length)
 		image_plane=principal_plane;
 		image_plane(3)-=f*pixel_spacing;
@@ -45,34 +50,30 @@ namespace Geometry
 	}
 	
 	/// Source-detector given by physical measurements. u/v_axis_vector should be scaled to size of one pixel in millimeters.
-	SourceDetectorGeometry::SourceDetectorGeometry(
-		const RP3Point& center_of_projection, const RP3Point& detector_origin,
-		const Eigen::Vector3d& u_axis_vector, const Eigen::Vector3d& v_axis_vector)
-		: C(center_of_projection)
-		, O(detector_origin)
-		, U(infinitePoint(u_axis_vector))
-		, V(infinitePoint(v_axis_vector))
-	{}
-
-	/// Figure out projection by detector coordinate system and source position. Axis vectors should be scaled to the size of one pixel.
-	ProjectionMatrix SourceDetectorGeometry::makeProjectionMatrix(const Geometry::RP3Point& source_pos, const Geometry::RP3Point& detector_origin,
+	SourceDetectorGeometry::SourceDetectorGeometry(const Geometry::RP3Point& source_pos, const Geometry::RP3Point& detector_origin,
 		const Eigen::Vector3d& u_axis_vector, const Eigen::Vector3d& v_axis_vector)
 	{
-		// Figure out detector plane.
-		RP3Plane detector_plane;
-		// Normal is gven by axis directions
-		detector_plane.head(3)=(u_axis_vector.cross(v_axis_vector)).normalized();
-		// Distance by detector origin
-		detector_plane(3)=0;
-		detector_plane(3)=-detector_plane.dot(detector_origin);
-		// Orthogonal projection to plane taking into consideration pixel size
-		Geometry::ProjectionMatrix P_E=Geometry::ProjectionMatrix::Zero();
-		P_E.block<1,3>(0,0)=u_axis_vector.transpose();
-		P_E.block<1,3>(1,0)=v_axis_vector.transpose();
-		P_E(2,3)=u_axis_vector.norm()*v_axis_vector.norm();
-		P_E=P_E*centralProjectionToPlane(source_pos,detector_plane);
-		normalizeProjectionMatrix(P_E);
-		return P_E;
+		C=source_pos;
+		O=detector_origin;	
+		U.head(3)=u_axis_vector;
+		V.head(3)=v_axis_vector;
+		U[3]=V[3]=0;
+		// Line at infinity for planes parallel to image
+		Geometry::RP3Line L_normal=Geometry::join_pluecker(U.normalized(),V.normalized());
+		// Plane normal
+		Eigen::Vector3d normal=Geometry::pluecker_moment(L_normal);
+		// Plane through detector origin: image plane!
+		image_plane=Geometry::join_pluecker(L_normal,O);
+		// Plane through source position: principal plane!
+		principal_plane=Geometry::join_pluecker(L_normal,C);
+		// Principal point: Orthogonal projection of source position to image plane
+		// First step: compute line orthogonal to detector through C
+		Geometry::RP3Line ortholine=Geometry::join_pluecker(Geometry::infinitePoint(normal),C);
+		// Second step: intersect that line with the image plane
+		principal_point_3d=Geometry::meet_pluecker(ortholine,image_plane);
+		// Finally set up matrix that projects to detector
+		central_projection=Geometry::centralProjectionToPlane(C,image_plane);
+		// We have now fully defined the source-detector-geometry object.
 	}
 
 	/// Get the 3D coordinates of the pixel (u,v) in world units
@@ -97,11 +98,50 @@ namespace Geometry
 		return RP2Point(U.dot(in_plane), V.dot(in_plane), U.norm()*V.norm());
 	}
 
+
 	/// Compute a projection matrix which relates 3D points to image pixels. See also: project(...)
 	ProjectionMatrix SourceDetectorGeometry::projectionMatrix() const
 	{
-		ProjectionMatrix P=makeProjectionMatrix(C,O,U.head(3),V.head(3));
-		normalizeProjectionMatrix(P);
+		// This pece of code is not a good solution.
+		// P can be computed directly from sdg object.
+		// No DLT needed.
+
+		Geometry::RP3Point Xv[]={
+			O  ,
+			O+C,
+			O  +U,
+			O+C+U,
+			O    +V,
+			O+C  +V,
+			O  +U+V,
+			O+C+U+V
+		};
+		
+		Geometry::RP2Point xv[]={
+			Geometry::RP2Point(0,0,1),
+			Geometry::RP2Point(0,0,1),
+			Geometry::RP2Point(1,0,1),
+			Geometry::RP2Point(1,0,1),
+			Geometry::RP2Point(0,1,1),
+			Geometry::RP2Point(0,1,1),
+			Geometry::RP2Point(1,1,1),
+			Geometry::RP2Point(1,1,1)
+		};
+
+		std::vector<Geometry::RP3Point> X(Xv,Xv+8);
+		std::vector<Geometry::RP2Point> x(xv,xv+8);
+
+		auto P= Geometry::dlt(x,X);
+
+		std::cout << "P=\n" << P << std::endl;
+		std::cout << "C=\n" << Geometry::getCameraCenter(P) << std::endl;
+
+		SourceDetectorGeometry sdg(P,V.norm());
+
+		std::cout << "O=\n" << sdg.O << std::endl;
+		std::cout << "U=\n" << sdg.U << std::endl;
+		std::cout << "V=\n" << sdg.V << std::endl;
+
 		return P;
 	}
 

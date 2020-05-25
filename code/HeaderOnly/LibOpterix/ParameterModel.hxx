@@ -32,6 +32,25 @@ namespace LibOpterix {
 		return restricted;
 	}
 
+	/// Return expanded vector by setting only those values  for which the active vector at the same index is true.
+	template <typename T>
+	std::vector<T>& expand_vector(const std::vector<T>& restricted, std::vector<T>& expanded, const std::vector<bool>& active)
+	{
+		int j=0;
+		for (int i=0;i<(int)active.size();i++)
+			if (active[i]) expanded[i]=restricted[j++];
+		return expanded;
+	}
+
+	/// Return expanded vector by setting only those values whose index is provided in active_set
+	template <typename T>
+	std::vector<T>& expand_vector(const std::vector<T>& restricted, std::vector<T>& expanded, const std::set<int>& active_set)
+	{
+		int i=0;
+		for (auto it=active_set.begin();it!=active_set.end();++it)
+			expanded[*it]=restricted[i++];
+		return expanded;
+	}
 	/// A full (or over-) parametrization of Object, of which only active parameters shall be optimized.
 	struct AbstractParameterModel {
 		/// Number of parameters in expanded parametrization.
@@ -133,12 +152,18 @@ namespace LibOpterix {
 			return current_values;
 		}
 
-		/// Set current values from vector (either restricted or expanded) parameters
-		ParameterModel<Object>& setCurrentValues(const double *x, bool x_is_expanded=true)
+		/// Set current values from (expanded) vector of parameters. See als: expand()[i] to get value.
+		ParameterModel<Object>& setValues(const double *x)
 		{
-			if (!x_is_expanded) expand(x);
-			else for (int i=0;i<(int)current_values.size();i++)
+			for (int i=0;i<(int)current_values.size();i++)
 				current_values[i]=x[i];
+			return *this;
+		}
+
+		/// Set current value (indexed as expanded). See als: expand()[i] to get value.
+		ParameterModel<Object>& setValue(int i, double x)
+		{
+			current_values[i]=x;
 			return *this;
 		}
 

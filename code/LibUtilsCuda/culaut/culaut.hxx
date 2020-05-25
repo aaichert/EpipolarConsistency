@@ -211,7 +211,7 @@ namespace culaut {
 		if (norm!=0) xvscale<T,N>(a,(float)1.0/norm);
 	}
 
-	/// Normal equality class for projective objects
+	/// Normal equality class for projective objects. N is vector length (e.g. 3 for RP2)
 	template <typename T, int N> __device__ __host__ inline
 	void xvdehomogenize(T *a)
 	{

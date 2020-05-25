@@ -191,13 +191,14 @@ namespace UtilsNLOpt {
 
 		}
 
-		virtual bool optimize(GetSetGui::ProgressInterface& progress)
+		virtual bool optimize(std::vector<double> &x, GetSetGui::ProgressInterface& progress)
 		{
 			// Notify user of starting progress
 			cancel_clicked=false;
-			progress.progressStart("Optinizing...",std::string("NLOpt optimization with ")+opt.get_algorithm_name(),-1,&cancel_clicked);
+			progress.progressStart("Optimizing...",std::string("NLOpt optimization with ")+opt.get_algorithm_name(),-1,&cancel_clicked);
 			// Start optimization
-			std::vector<double> x(opt.get_dimension());
+			if (x.size()!=opt.get_dimension())
+				x=std::vector<double>(opt.get_dimension(),0.0);
 			double minf;
 			int result=INT_MIN;
 			try {
@@ -209,7 +210,7 @@ namespace UtilsNLOpt {
 			progress.progressEnd();
 			if (result==NLOPT_SUCCESS)
 				return true;
-			progress.warn("Optimization Failed", nlopts_exit_status(result));
+			// progress.warn("Optimization Failed", nlopts_exit_status(result));
 			return false;
 		}
 

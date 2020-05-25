@@ -7,7 +7,7 @@
 #include <GetSet/GetSet.hxx>
 #endif
 
-#include <QtWidgets/QWidget>
+#include <QWidget>
 #include <QtGui/QPainter>
 #include <QPaintEvent>
 #include <QImage>

@@ -1,0 +1,7 @@
+
+add_executable( FDCTCalibrationCorrection
+	FDCTCalibrationCorrection.cpp
+)
+target_link_libraries( FDCTCalibrationCorrection LibProjectiveGeometry LibEpipolarConsistency LibCudaUtils QCP GetSet GetSetGui LibPlotView ${NLOPT_LIBRARY})
+qt5_use_modules(FDCTCalibrationCorrection Widgets OpenGL PrintSupport)
+install(TARGETS FDCTCalibrationCorrection DESTINATION bin)

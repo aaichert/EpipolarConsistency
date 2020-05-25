@@ -155,14 +155,6 @@ namespace NRRD {
 		}
 	}
 
-	/// Convert single channel 2D NRRD::Image to QPixmap
-	inline QPixmap nrrdToQPixmap(const NRRD::ImageView<float>& img, double bias=0, double scale=0, bool is_signed=false)
-	{
-		QImage qtimg;
-		nrrdToQImage(img,qtimg,bias,scale,is_signed);
-		return QPixmap::fromImage(qtimg);
-	}
-
 } // namespace NRRD
 
 #endif // __NRRD_QT_HXX

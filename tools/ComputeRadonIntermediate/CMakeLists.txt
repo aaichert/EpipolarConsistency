@@ -1,0 +1,8 @@
+add_executable(ComputeRadonIntermediate
+	ComputeRadonIntermediate.cpp
+)
+target_link_libraries( ComputeRadonIntermediate LibProjectiveGeometry LibEpipolarConsistency LibEpipolarConsistencyGui LibUtilsQt LibUtilsCuda GetSet GetSetGui )
+qt5_use_modules(ComputeRadonIntermediate Widgets Svg OpenGL PrintSupport)
+install(TARGETS ComputeRadonIntermediate DESTINATION bin)
+qt5_win32_copy_dlls(ComputeRadonIntermediate)
+set_property(TARGET ComputeRadonIntermediate PROPERTY FOLDER "Utilities") 

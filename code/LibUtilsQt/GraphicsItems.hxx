@@ -22,7 +22,7 @@ namespace GraphicsItems
 
 	inline QColor colorByIndex(int i, int alpha=255) {
 		i=i+1;										// avoid black
-		if (i==8) return QColor(255,128,128,alpha); // avoid white
+		if (i==7) return QColor(255,128,128,alpha); // avoid white
 		int scale_r=255-128*((i/8 )%2), scale_g=255-128*((i/16)%2), scale_b=255-128*((i/32)%2);
 		int       r=scale_r*(i%2),            g=scale_g*((i/2)%2),        b=scale_b*((i/4)%2);
 		return QColor(r,g,b,alpha);
@@ -411,7 +411,9 @@ namespace GraphicsItems
 		virtual void draw(QPainter& p, const Geometry::ProjectionMatrix& P, double magnification)
 		{
 			QPen pen(color);
-			pen.setWidth(width*magnification);
+			pen.setWidth(std::min(1.0,std::abs(width*magnification)));
+			if (width<0)
+				pen.setStyle(Qt::DashLine);
 			p.setPen(pen);
 			p.drawLine(QPointF(a[0]*magnification,a[1]*magnification),QPointF(b[0]*magnification,b[1]*magnification));
 		}
@@ -454,9 +456,9 @@ namespace GraphicsItems
 
 		virtual void draw(QPainter& p, const Geometry::ProjectionMatrix& P, double magnification)
 		{
-			int	width =p.viewport().width()/magnification;
+			int width =p.viewport().width()/magnification;
 			int height=p.viewport().height()/magnification;
-			l=l/l.head(2).norm();
+			l=-l/l.head(2).norm();
 			double d[]={l[1],-l[0]};
 			double o[]={-l[2]*l[0],-l[2]*l[1]};
 			float v[]={
@@ -478,6 +480,8 @@ namespace GraphicsItems
 			a=Eigen::Vector2d(o[0]+d[0]*v[1],o[1]+d[1]*v[1]);
 			b=Eigen::Vector2d(o[0]+d[0]*v[2],o[1]+d[1]*v[2]);
 			Line2D::draw(p,P,magnification);
+			Point2D(a[0],a[1],3,color,MarkerShape::Dot,3);
+			Point2D(b[0],b[1],3,color,MarkerShape::Dot,3);
 		}
 	};
 

@@ -52,6 +52,9 @@ namespace UtilsQt {
 		QLabel                     *status_cursor_pos;
 		QLabel                     *status_info;
 
+		bool updating;
+		bool update_pending;
+
 		//
 		// Advanced user input
 		//
@@ -104,9 +107,10 @@ namespace UtilsQt {
 		///  update Meta info in GUI
 		void updateMetaInfo();
 
-
 		/// Callback mechanism when selection changes
 		void (*callback_select)(const std::string&, bool , std::vector<Eigen::Vector4d>&);
+		/// Callback mechanism when figure is updated
+		bool (*callback_update)(NRRD::Image<float>& image_source, GraphicsItems::Group& overlay, ProjectionParametersGui&, double magnification);
 
 		//
 		/// Access to a database of Figure windows
@@ -166,8 +170,14 @@ namespace UtilsQt {
 		// Callback
 		void setCallback(void (*callback_select)(const std::string&, bool , std::vector<Eigen::Vector4d>&));
 
+		// Callback (return true to force an update on pixmap, i.e. if image has changed)
+		void setCallback(bool (*callback_update)(NRRD::Image<float>& image_source, GraphicsItems::Group& overlay, UtilsQt::ProjectionParametersGui&, double magnification));
+
 		/// Set a NRRD::Image
 		void setImage(const NRRD::ImageView<float>& img, double bias=0, double scale=0, bool is_signed=0);
+		
+		/// Change contrast of image
+		void setContrast(double bias=0, double scale=0, bool is_signed=0);
 
 		/// Get the NRRD::Image
 		NRRD::ImageView<float> getImage() const;
@@ -176,7 +186,7 @@ namespace UtilsQt {
 		NRRD::ImageView<float> getCurrentSlice() const;
 
 		/// If image_source is provided, get a contrast enhanced view of that, otherwise, just show background_color
-		void updatePixmap();
+		void updatePixmap(bool call_update=true);
 
 		/// Save image and overlay as rasterized image
 		bool savePNG(const std::string& filename);
@@ -185,13 +195,13 @@ namespace UtilsQt {
 		bool savePDF(const std::string& filename);
 
 		/// Scale image and render overlay to raster image
-		QPixmap render(double _magnification=1.0);
+		QPixmap render(const Geometry::ProjectionMatrix& P, double _magnification=1.0);
 		
 		/// Display some info in the status bar
 		void info(const std::string& info_text);
 
-		/// Force an immediate update of the overlay
-		void update();
+		/// Force an immediate update of the overlay. If an updae is already in progress, the update will be postponed, unless force is set.
+		void update(bool force=false);
 
 		/// Automatically fits image to the window size.
 		void setAutoResize(bool auto_resize=true);

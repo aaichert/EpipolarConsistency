@@ -3,7 +3,6 @@
 #define __radon_derivative
 
 #include <NRRD/nrrd_image.hxx>
-#include "LibProjectiveGeometry/ProjectiveGeometry.hxx"
 
 // Predeclaration of some CUDA stuff
 namespace UtilsCuda {
@@ -13,15 +12,24 @@ namespace UtilsCuda {
 
 namespace EpipolarConsistency
 {
-	using Geometry::Pi;
 	/// Compute derivative in t-direction of Radon transform of x-ray projection data.
 	class RadonIntermediate {
 	public:
-		/// Ctor computes radon derivative right away.
-		RadonIntermediate(const NRRD::ImageView<float>& projectionData, int size_alpha, int size_t, bool computeDerivative=true);
+		/// Filter applied to Radon transform.
+		enum Filter {
+			Derivative=0, Ramp=1, None=2,
+		};
+		
+		/// Function applied to each value in the Radon transform
+		enum PostProcess {
+			Identity=0, SquareRoot=1, Logarithm=2
+		};
 
 		/// Ctor computes radon derivative right away.
-		RadonIntermediate(const UtilsCuda::BindlessTexture2D<float>& projectionData, int size_alpha, int size_t, bool computeDerivative=true);
+		RadonIntermediate(const NRRD::ImageView<float>& projectionData, int size_alpha, int size_t, Filter filter, PostProcess post_process);
+
+		/// Ctor computes radon derivative right away.
+		RadonIntermediate(const UtilsCuda::BindlessTexture2D<float>& projectionData, int size_alpha, int size_t, Filter filter, PostProcess post_process);
 
 		/// Ctor loads a previously saved dtr.
 		RadonIntermediate(const std::string path);
@@ -38,10 +46,13 @@ namespace EpipolarConsistency
 		/// Store relevat parameters in meta dictionary.
 		void writePropertiesToMeta(std::map<std::string, std::string> &dict) const;
 
-		// Update Radon intermediate data with CPU memory. See also: readback() and data() member functions.
+		/// Update Radon intermediate data with CPU memory. See also: readback() and data() member functions.
 		void replaceRadonIntermediateData(const NRRD::ImageView<float>& radon_intermediate_image);
 
-		/// If false, this is a standard Radon transform. If true, a derivtaive in direction of line distance has been computed.
+		/// Which filter has been applied to the Radon transform t-direction? derivative (Grangeat), ramp (Smith) or none (pseudo-FBCC);
+		RadonIntermediate::Filter getFilter() const;
+
+		/// If true, then the Radon intermediate function is odd, meaning dtr(alpha+Pi,t)=-dtr(alpha,-t). If false, we have dtr(alpha+Pi,t)=dtr(alpha,-t)
 		bool isDerivative() const;
 
 		/// Readback Radon Intermediate data to CPU. If gpu_memory_only is set, the texture will be transferred to global GPU memory but not read back to RAM. See also: clearRawData().
@@ -74,20 +85,15 @@ namespace EpipolarConsistency
 		{
 			// Compute range of t-value in Radon transform this dtr corresponds to
 			float range_t=(float)m_bin_size_distance*getRadonBinNumber(1);
-			// Length of normal
-			float length=sqrtf(line[0]*line[0]+line[1]*line[1]);
-			// Angle between line and x-axis (scaled from 0 to +2).
-			line[0]=atan2f(line[1],line[0])/(float)Pi;
-			if (line[0]<0) line[0]+=2;
-			// Distance to the origin (scaled to DTR bins)
-			line[1]=-(line[2]/length)/range_t+0.5f;
+			// Convert line to angle distance and compute texture coordinates to be sampled.
+			lineToSampleDtr(line,range_t);
 			// Sample DTR and account for symmetry, up to sign.
 			if (line[0]>1)
 			{
 				line[0]=line[0]-1.f;
 				line[1]=1.f-line[1];
-				// Otherwise, sample and invert sign in case of derivative.
-				if (m_is_derivative)
+				// Sample and invert sign in case of derivative.
+				if (m_filter==Derivative)
 					return -tex2D(line[0],line[1]);
 				else
 					return +tex2D(line[0],line[1]);
@@ -107,7 +113,7 @@ namespace EpipolarConsistency
 		
 		double	m_bin_size_angle;			//< y-axis (angle) discretization.
 		double	m_bin_size_distance;		//< x-axis (distance) discretization.
-		bool    m_is_derivative;			//< if true, we have an odd function (i.e. derivative along t-direction).
+		RadonIntermediate::Filter m_filter;	//< derivative, ramp or no filter applied after Radon transform?
 		
 		int		n_x;						//< Size of original image in X.
 		int		n_y;						//< Size of original image in Y.
@@ -115,7 +121,7 @@ namespace EpipolarConsistency
 		int		n_alpha;					//< Number of bind for angle to the image X-axis.
 		
 		/// Runs Cuda kernel for Radon transform computation.
-		void compute(const UtilsCuda::BindlessTexture2D<float>& projectionData, int size_alpha, int size_t, bool computeDerivative);
+		void compute(const UtilsCuda::BindlessTexture2D<float>& projectionData, int size_alpha, int size_t, Filter filter, PostProcess post_process);
 
 	};
 } // namespace EpipolarConsistency

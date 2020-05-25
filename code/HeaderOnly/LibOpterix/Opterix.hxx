@@ -12,7 +12,7 @@
 //                       @@           @  
 //                       :@@        O  P  T  E  R  I  X
 //                         @@@+;'@: 
-// A c++ library allowing non-linear optimization to easily exchange parametrizations and optimization algorthms/libraries.
+// A c++ library allowing non-linear optimization to easily exchange parametrizations and optimization algorithms/libraries.
 // To use this library, you need to define two classes, one deriving from OptimizationProblem, and another deriving from AbstractOptimizer.
 // This library includes a simple grid-search and Powell optimizer and optional wrappers for NLopt (others pending).
 
@@ -79,7 +79,7 @@ namespace LibOpterix {
 		{}
 		
 		/// Perform optimization over parameters in AbstractOptimizationProblem.
-		virtual bool optimize(GetSetGui::ProgressInterface&) =0;
+		virtual bool optimize(std::vector<double> &x, GetSetGui::ProgressInterface&) =0;
 		
 		/// Optionally ask optimizer to notify called after each cost function evaluation.
 		AbstractOptimizer& setCallback(NotifyUpdate _callback)

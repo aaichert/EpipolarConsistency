@@ -79,12 +79,12 @@ namespace UtilsCuda
 		cudaMalloc3DArray(&array, &channelDesc, make_cudaExtent(w,h,d), 0);
 		cudaCheckState
 
-		// cudaMemcpyToArray(array, 0, 0, buffer, sizeof(Type)*w*h*d, buffer_is_device ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice); // ?
+		// cudaMemcpyToArray(array, 0, 0, buffer, sizeof(Type)*w*h*d, buffer_is_device ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice); // FIXME implement like 2D version above
 		cudaMemcpy3DParms copyParams={0};
 		copyParams.srcPtr=make_cudaPitchedPtr((void*)buffer, w*sizeof(Type), w, h);
 		copyParams.dstArray=array;
 		copyParams.extent=make_cudaExtent(w,h,d);
-		copyParams.kind=cudaMemcpyHostToDevice;
+		copyParams.kind=buffer_is_device ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice;
 		cudaMemcpy3D(&copyParams);
 		cudaCheckState
 

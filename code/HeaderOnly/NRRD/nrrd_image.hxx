@@ -37,18 +37,20 @@ namespace NRRD
         Image(int size[], int n, T* dt=0x0) : ImageView<T>(), alloc(0) { set(size,n,dt); }
 
 		/// Clone an existing image.
-		void clone(const NRRD::ImageView<T>& other)
+		template <typename T2>
+		Image<T>& clone(const NRRD::ImageView<T2>& other)
 		{
 			int n=other.dimension();
 			std::vector<int> dims(n);
 			for (int i=0; i<n; i++) dims[i]=other.size(i);
 			if (n>0) {
 				set(&dims[0],n,0x0);
-				this->copyDataFrom((T*)other);
+				this->copyDataFrom((T2*)other);
 			}
 			else set(0,0x0);
 			nrrd_header=other.nrrd_header;
 			meta_info=other.meta_info;
+			return *this;
 		}
 		
 		/// Create an image from file

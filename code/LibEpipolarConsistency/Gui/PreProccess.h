@@ -26,7 +26,7 @@ namespace EpipolarConsistency
 			double gaussian_sigma    =1.84;
 			int    half_kernel_width =5;
 		} lowpass;
-	
+
 		/// Modifying geometry
 		struct ImageGeometry {
 			bool   flip_u           =false;
@@ -37,6 +37,7 @@ namespace EpipolarConsistency
 		struct Border {
 			Eigen::Vector4i zero=Eigen::Vector4i::Constant(1);
 			Eigen::Vector4i feather=Eigen::Vector4i::Constant(16);
+			std::vector<Eigen::Vector4i> blanks;
 		} border;
 
 		void gui_declare_section (const GetSetGui::Section& section);

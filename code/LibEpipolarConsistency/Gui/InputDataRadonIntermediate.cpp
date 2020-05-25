@@ -5,6 +5,7 @@
 #ifdef _HAS_UTILS_QT
 #include "DisplayGeometry.hxx"
 #include <GetSetGui/GetSetModalDialog.h>
+#include <EpipolarConsistencyRadonIntermediate.h>
 #endif // _HAS_UTILS_QT
 
 namespace EpipolarConsistency {
@@ -256,12 +257,15 @@ namespace EpipolarConsistency {
 			if (!loadData(false)) return;
 			auto& Ps=getProjectionMatrices();
 			auto& dtrs=getRadonIntermediateFunctions();
-			EpipolarConsistency::displayInputDataRadonIntermediate(*this);
 			GetSetGui::GetSetModalDialog diag;
-			GetSet<int>   ("Epipolar Consistency/Index Reference"   ,diag)=0;
-			GetSet<int>   ("Epipolar Consistency/Index Input"       ,diag)=1;
-			GetSet<double>("Epipolar Consistency/Plane Angle [deg]" ,diag)=0.1;
-			GetSetGui::Section("Epipolar Consistency",diag).setGrouped();
+			int n=(int)Ps.size();
+			GetSetGui::RangedInt("Epipolar Consistency/Index Reference"   ,diag).setMax(n-1)=0;
+			GetSetGui::RangedInt("Epipolar Consistency/Index Input"       ,diag).setMax(n-1)=1;
+			GetSet<double>      ("Epipolar Consistency/Plane Angle [deg]" ,diag)=0.05;
+			GetSetGui::Section  ("Epipolar Consistency",diag).setGrouped();
+			GetSet<bool>        ("Visualization/Show Stack of Radon Intermediates",diag)=0;
+			GetSetGui::Enum     ("Visualization/Show Cost Image",diag).setChoices("None;SSD;Correlation");
+			GetSetGui::Section  ("Visualization",diag).setGrouped();
 			if (diag.exec("Advanced Visualization"))
 			{
 				EpipolarConsistency::displayRadonSamples(
@@ -269,6 +273,23 @@ namespace EpipolarConsistency {
 					GetSet<int>   ("Epipolar Consistency/Index Input"       ,diag),
 					GetSet<double>("Epipolar Consistency/Plane Angle [deg]" ,diag)/180*Geometry::Pi,
 					Ps,dtrs,app);
+			}
+			if (GetSet<bool>  ("Visualization/Show Stack of Radon Intermediates",diag))
+				EpipolarConsistency::displayInputDataRadonIntermediate(*this);
+	
+			int mode=GetSet<int>("Visualization/Show Cost Image",diag);
+			if (mode!=0)
+			{
+				NRRD::Image<float> cost_image(n,n);
+				int l=cost_image.length();
+				for (int i=0;i<l;i++) cost_image[i]=0;
+				EpipolarConsistency::MetricRadonIntermediate ecc(Ps,dtrs);
+				if (mode==2) ecc.useCorrelation();
+				double inconsistency=ecc
+					// .setdKappa(GetSet<double>("Epipolar Consistency/Plane Angle [deg]" ,diag)/180*Geometry::Pi)
+					.evaluate(cost_image);
+				cost_image.meta_info["Epipolar Inconsistency"]=toString(inconsistency);
+				UtilsQt::Figure("Cost Image", cost_image);
 			}
 		}
 #endif // _HAS_UTILS_QT

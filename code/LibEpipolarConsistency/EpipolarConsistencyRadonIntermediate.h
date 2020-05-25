@@ -19,8 +19,11 @@ namespace EpipolarConsistency
 {
 	/// Compute Epipolar Consistency on the GPU
 	class MetricRadonIntermediate : public Metric {
-		// Radon intermediate functions.
+		/// Radon intermediate functions.
 		std::vector<RadonIntermediate*> dtrs;
+
+		/// Use correlation coefficient or sum of squared differences to compare signals
+		bool use_corr;
 
 	public:
 		MetricRadonIntermediate();
@@ -36,8 +39,14 @@ namespace EpipolarConsistency
 			return *this;
 		}
 
+		/// Tell Metric to compute correlation instead of SSD
+		MetricRadonIntermediate& useCorrelation(bool corr=true);
+
 		/// Move Radon derivetaives to texture memory and store reference here. DO NOT delete or change _dtrs during lifetime of Metric.
 		MetricRadonIntermediate& setRadonIntermediates(const std::vector<RadonIntermediate*>& _dtrs);
+	
+		/// Access Radon intermediate functions (for visualization and debugging)
+		const std::vector<RadonIntermediate*>& getRadonIntermediates() const;
 	
 		/// Set parameters for computation of Radon intermediate functions in setProjectionImages(...)
 		Metric&  setRadonIntermediateBinning(int num_bins_per_180_deg, int num_bins_per_image_diagonal);
@@ -58,7 +67,7 @@ namespace EpipolarConsistency
 		double evaluate(const std::set<int>& views, float * _out=0x0);
 
 		/// Evaluates metric without any transformation of the geometry. Indices addresses (P0,P1,dtr0,dtr1)
-		void evaluate(const std::vector<Eigen::Vector4i>& _indices, float * _out);
+		double evaluate(const std::vector<Eigen::Vector4i>& _indices, float * _out);
 
 		/// Evaluate for just tow images i and j and optionally also return redundant values (visualization only - slow, not using GPU)
 		virtual double evaluateForImagePair(int i, int j,
@@ -66,7 +75,7 @@ namespace EpipolarConsistency
 			std::vector<float> *kappas=0x0);
 
 		/// Evaluate for just tow images i and j and  return redundant values and sample locations in the Radon transforms (visualization only - slow, not using GPU)
-		double evaluateForImagePair(int i, int j,
+		double MetricRadonIntermediate::evaluateForImagePair(int i, int j,
 			std::vector<float> *redundant_samples0, std::vector<float> *redundant_samples1,
 			std::vector<float> *kappas,
 			std::vector<std::pair<float,float> > *radon_samples0,
@@ -80,6 +89,7 @@ namespace EpipolarConsistency
 		UtilsCuda::MemoryBlock<char>	*tex_dtrs;	//< Radon Derivative textures on GPU
 		UtilsCuda::MemoryBlock<float>	*K01s;		//< Mappings from plane angle to epipolar lines
 		UtilsCuda::MemoryBlock<float>	*out;		//< Results
+		UtilsCuda::MemoryBlock<float>	*corr_out;	//< Optional intermediate storagy for correlation computation 
 
 		UtilsCuda::MemoryBlock<int>		*indices;	//< Optional selection of specific indices.
 		int								n_pairs;	//< Number of indices for which GPU memory has been allocated

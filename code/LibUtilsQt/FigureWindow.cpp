@@ -23,6 +23,7 @@
 #include <QPushButton>
 #include <QProgressBar>
 #include <QMessageBox>
+#include <QMutex>
 
 #include <functional>
 #include <cmath>
@@ -47,7 +48,7 @@ namespace UtilsQt {
 	// drawing
 	//
 
-	QPixmap FigureWindow::render(double _magnification)
+	QPixmap FigureWindow::render(const Geometry::ProjectionMatrix& P, double _magnification)
 	{
 		if (pixmap.width()<=0 || pixmap.height()<=0)
 		{
@@ -65,7 +66,7 @@ namespace UtilsQt {
 		bool interpolate=GetSet<bool>("General/Magnification/Interpolation",dictionary);
 		QPixmap display=pixmap.scaledToWidth(pixmap.width()*_magnification ,interpolate?Qt::SmoothTransformation:Qt::FastTransformation);
 		QPainter p(&display);
-		overlay.draw(p,getProjectionMatrix(),_magnification);
+		overlay.draw(p,P,_magnification);
 		if (!!image_source && GetSet<bool>("Selections/Show",dictionary))
 		{
 			auto rb=GetSet<std::vector<Eigen::Vector4d> >("Selections/Blue"  ,dictionary).getValue();
@@ -103,29 +104,18 @@ namespace UtilsQt {
 			auto two_up=one_up.supersection();
 			if (two_up.path()==keys.path()) one_up.setGrouped();
 		}
+		GetSetGui::Section("Meta Data/Fields",dictionary).discard();
+		GetSetGui::Section fields("Meta Data/Fields",dictionary);
+		for (auto it=image_source.nrrd_header.begin();it!=image_source.nrrd_header.end();++it)
+			GetSet<>(it->first,fields)=it->second;
 		callback.ignoreNotifications(false);
 	}
 
 	void FigureWindow::setImage(const NRRD::ImageView<float>& img, double bias, double _scale, bool is_signed)
 	{
-		double scale=(_scale==0?NRRD::nrrdComputeBiasAndScale<float>(img, bias, _scale):_scale);
-		callback.ignoreNotifications(true);
-		if (is_signed)
-		{
-			GetSet<double>("Intensity/Scale",dictionary)=scale;
-			GetSet<double>("Intensity/Bias",dictionary)=bias+0.5/scale;
-		}
-		else
-		{
-			GetSet<double>("Intensity/Scale",dictionary)=scale;
-			GetSet<double>("Intensity/Bias",dictionary)=0;
-		}
-		GetSetGui::Button("Intensity/Auto",dictionary)="Auto-Adjust";
-		GetSetGui::Section("Intensity",dictionary).setGrouped();
-		setToolsetImage(true);
-		callback.ignoreNotifications(false);
 		image_source.clone(img);
-		updatePixmap();
+		setContrast(bias,_scale,is_signed);
+		setToolsetImage(true);
 		GetSet<bool>("General/Magnification/Interpolation",dictionary)=true;
 		if (pixmap.width()<=300 && pixmap.height()<=300) {
 			GetSet<bool>("General/Magnification/Interpolation",dictionary)=false;
@@ -157,6 +147,33 @@ namespace UtilsQt {
 		update();
 	}
 	
+	void FigureWindow::setContrast(double bias, double _scale, bool is_signed)
+	{
+		if (!image_source) {
+			callback.ignoreNotifications(true);
+			GetSet<double>("Intensity/Scale",dictionary)=_scale;
+			GetSet<double>("Intensity/Bias",dictionary)=bias;
+			callback.ignoreNotifications(false);
+			return;
+		};
+		double scale=(_scale==0?NRRD::nrrdComputeBiasAndScale<float>(image_source, bias, _scale):_scale);
+		callback.ignoreNotifications(true);
+		if (is_signed)
+		{
+			GetSet<double>("Intensity/Scale",dictionary)=scale;
+			GetSet<double>("Intensity/Bias",dictionary)=bias+0.5/scale;
+		}
+		else
+		{
+			GetSet<double>("Intensity/Scale",dictionary)=scale;
+			GetSet<double>("Intensity/Bias",dictionary)=0;
+		}
+		GetSetGui::Button("Intensity/Auto",dictionary)="Auto-Adjust";
+		GetSetGui::Section("Intensity",dictionary).setGrouped();
+		callback.ignoreNotifications(false);
+		updatePixmap();
+	}
+
 	NRRD::ImageView<float> FigureWindow::getImage() const { return image_source; }
 
 	NRRD::ImageView<float> FigureWindow::getCurrentSlice() const {
@@ -169,15 +186,17 @@ namespace UtilsQt {
 		return NRRD::ImageView<float>(image_source,slice_index);
 	}
 
-	void FigureWindow::updatePixmap()
+	void FigureWindow::updatePixmap(bool call_update)
 	{
 		if (!!image_source)
 		{
 			double scale=GetSet<double>("Intensity/Scale",dictionary);
 			double bias =GetSet<double>("Intensity/Bias" ,dictionary);
 			if (image_source.isElementKindColor()) {
-				pixmap=NRRD::nrrdToQPixmap(image_source,bias,scale);
-				update();
+				QImage tmp;
+				NRRD::nrrdToQImage(image_source,tmp,bias,scale);
+				pixmap.convertFromImage(tmp);
+				if (call_update) update();
 				return;
 			}
 			int max_slice=image_source.dimension()<=2?0:image_source.size(2)-1;
@@ -188,8 +207,8 @@ namespace UtilsQt {
 			if (slice_index>0)
 				status_cursor_pos->setText((std::string("z = ")+slice_index.getString()+" / " + toString(max_slice+1)).c_str());
 			if (scale==0) {
-				callback.ignoreNotifications(true);
 				NRRD::nrrdComputeBiasAndScale(slice,bias,scale);
+				callback.ignoreNotifications(true);
 				GetSet<double>("Intensity/Scale",dictionary)=scale<=0?1:scale;
 				GetSet<double>("Intensity/Bias" ,dictionary)=bias;
 				callback.ignoreNotifications(false);
@@ -199,8 +218,10 @@ namespace UtilsQt {
 			callback.ignoreNotifications(true);
 			GetSetGui::StaticText("Intensity/_info",dictionary)="Visible Intensity window:  " +toString(mean_intensity) + " +/- " +toString(half_width);;
 			callback.ignoreNotifications(false);
-			pixmap=NRRD::nrrdToQPixmap(slice,bias,scale);
-			update();
+			QImage tmp;
+			NRRD::nrrdToQImage(slice,tmp,bias,scale);
+			pixmap.convertFromImage(tmp);
+			if (call_update) update();
 		}
 	}
 
@@ -212,7 +233,7 @@ namespace UtilsQt {
 	{
 		if (!window) return;
 
-		if (node.super_section=="Projection")
+		if (node.super_section=="Projection" && !updating)
 			update();
 		else if (node.super_section=="General") {
 			if (node.name=="Projection Matrix") {
@@ -240,12 +261,41 @@ namespace UtilsQt {
 				GetSet<std::vector<Eigen::Vector4d> >("Selections/Blue"  ,dictionary).setString("");
 				GetSet<std::vector<Eigen::Vector4d> >("Selections/Yellow",dictionary).setString("");
 			}
-			update();
+			if (!updating)
+				update();
 		}
 		else if (hasPrefix(node.super_section,"Meta Data/Keys"))
 		{
 			std::string key=
 			image_source.meta_info[node.name]=node.getString();
+		}
+		else if (hasPrefix(node.super_section,"Meta Data/Fields"))
+		{
+			std::string field=node.name;
+			if (field=="type"
+			 || field=="dimension"
+			 || field=="sizes"
+			 || field=="encoding"
+			 || field=="endian")
+			{
+				warn(field + " is not mutable!", std::string("Changing the \"") + field + "\" would make the image invalid. You cannot change the any of the fields "
+				"\"type\", \"dimension\", \"sizes\", \"encoding\" or \"endian\".",true);
+			}
+			else if(field=="spacings") {
+				auto spacings=stringToVector<double>(node.getString());
+				if (spacings.size()==image_source.dimension())
+				{
+					for (int i=0;i<image_source.dimension();i++)
+						image_source.spacing(i)=spacings[i];
+					std::cout << "spacings = " << vectorToString(spacings) << "\n";
+				}
+				else warn("Invalid spacings", "The format must be \"<double> <double> ... <double>\" and the number of values must match the image dimension.", true) ;
+			}
+			else
+			{
+				image_source.nrrd_header[field]=node.getString();
+				std::cout << field << " = " << node.getString() << std::endl;
+			}
 		}
 		else if (node.name=="Erase Key")
 		{
@@ -297,18 +347,61 @@ namespace UtilsQt {
 
 	void FigureWindow::file_export()
 	{
-		std::string path=QFileDialog::getSaveFileName(0x0, "Export...",(name+".pdf").c_str(), "Portable Document Format (*.pdf);;Portable Network Graphics (*.png);;All Files (*)").toStdString();
+		std::string path=QFileDialog::getSaveFileName(0x0, "Export...",(name+".pdf").c_str(), "Portable Document Format (*.pdf);;Portable Network Graphics (*.png);;NRRD Image (all types) (*.nrrd);;All Files (*)").toStdString();
 		if (path.empty()) return;
 		std::string extension=path;
 		extension=splitRight(extension,".");
-		if (extension=="png")
+		normalize(extension);
+		if (extension=="nrrd")
+		{
+			// Make suer choos ean export type and optionally scale data to another range
+			GetSetGui::GetSetModalDialog type_selector_diag;
+			GetSetGui::Enum("type",type_selector_diag).setChoices("char;short;int;long;unsigned char;unsigned short;unsigned int;unsigned long;float;double");
+			GetSetGui::Section intensity("Intensity Transformation",type_selector_diag);
+			GetSet<double>("Scale",intensity,1.0);
+			GetSet<double>("Bias",intensity,0.0);
+			intensity.setGrouped();
+			GetSetGui::Section clamp("Clamping",type_selector_diag);
+			GetSet<bool>("Apply Clamping",clamp,false);
+			GetSet<double>("Lower Bound",clamp,0.0);
+			GetSet<double>("Upper Bound",clamp,1.0);
+			clamp.setGrouped();
+			if (!type_selector_diag.exec("Please select type for image eport.")) return;
+			std::string type=GetSet<>("type",type_selector_diag);
+			double scale=GetSet<double>("Scale",intensity);
+			double bias=GetSet<double>("Bias",intensity);
+			bool do_clamping=GetSet<bool>("Apply Clamping",clamp);
+			double clamp_min=GetSet<double>("Lower Bound",clamp);
+			double clamp_max=GetSet<double>("Upper Bound",clamp);
+			// Apply bias and scale to a clone and optionally clamp value range
+			int l=image_source.length();
+			NRRD::Image<float> bias_scaled;
+			bias_scaled.clone(image_source);
+			for (int i=0;i<l;i++) {
+				bias_scaled[i]=(bias_scaled[i]+bias)*scale;
+				if (do_clamping) {
+					if (bias_scaled[i]<clamp_min) bias_scaled[i]=clamp_min;
+					if (bias_scaled[i]>clamp_max) bias_scaled[i]=clamp_max;
+				}
+			}
+			// Cast to requested type and save
+			bool success=false;
+			#define _DEFINE_TYPE_NO_BOOL
+			#define _DEFINE_TYPE(X)  if (type==#X) NRRD::Image<X>().clone(bias_scaled).save(path); 
+			#include <NRRD/BaseTypes.hxx>
+			#undef _DEFINE_TYPE_NO_BOOL
+			#undef _DEFINE_TYPE
+			// Check for success
+			if (success) std::cout << "Export as type " << type << " successful.\n";
+		}
+		else if (extension=="png")
 			savePNG(path);
 		else
 			savePDF(path);
 	}
 
 	void FigureWindow::file_close()     { window->close(); }
-	void FigureWindow::edit_copy()      { QApplication::clipboard()->setImage(render().toImage(), QClipboard::Clipboard); }
+	void FigureWindow::edit_copy()      { QApplication::clipboard()->setImage(render(getProjectionMatrix()).toImage(), QClipboard::Clipboard); }
 	void FigureWindow::edit_zoom_in()   { GetSet<double> magnification("General/Magnification/Factor",dictionary); double m=((int)(magnification*10))*0.1+.2; magnification=m>4?4:m; update(); }
 	void FigureWindow::edit_zoom_out()  { GetSet<double> magnification("General/Magnification/Factor",dictionary); double m=((int)(magnification*10))*0.1-.2; magnification=m>4?4:m; update(); }
 	void FigureWindow::edit_editplots() { UtilsQt::showPlotEditor(); }
@@ -330,8 +423,8 @@ namespace UtilsQt {
 	void FigureWindow::mouse_move(int x, int y, int dx, int dy)
 	{
 		double magnification=GetSet<double>("General/Magnification/Factor",dictionary);
-		int xpx=(int)std::round((double)x/magnification);
-		int ypx=(int)std::round((double)y/magnification);
+		int xpx=(int)((double)x/magnification);
+		int ypx=(int)((double)y/magnification);
 		status_cursor_pos->setText((toString(xpx)+" "+toString(ypx)
 			+(image_source.dimension()>2?" "+GetSet<int>("Intensity/Slice Index",dictionary).getString():"")).c_str());
 		if (!image_source) return;
@@ -556,7 +649,10 @@ namespace UtilsQt {
 		, advanced_settings(0x0)
 		, projection(new ProjectionParametersGui(GetSetGui::Section("Projection", dictionary).setGrouped(),this))
 		, callback(std::bind(&FigureWindow::notify, this, std::placeholders::_1),dictionary)
+		, callback_select(0x0)
+		, callback_update(0x0)
 		, name(_name)
+		, updating(false)
 		, P(Geometry::ProjectionMatrix::Identity())
 	{
 		using namespace std::placeholders;
@@ -736,10 +832,15 @@ namespace UtilsQt {
 		}
 	}
 
+	void FigureWindow::setCallback(bool (*cb)(NRRD::Image<float>& image_source, GraphicsItems::Group& overlay, ProjectionParametersGui&, double magnification))
+	{
+		callback_update=cb;
+	}
+
 	void FigureWindow::setProjectionMatrix(const Geometry::ProjectionMatrix& _P)
 	{
 		GetSet<bool>("Projection/Manual Projection",dictionary)=false;
-		P=_P;
+		GetSet<Geometry::ProjectionMatrix>("General/Projection Matrix",dictionary)=_P;
 	}
 
 	Geometry::ProjectionMatrix FigureWindow::getProjectionMatrix() const
@@ -780,12 +881,12 @@ namespace UtilsQt {
 
 	bool FigureWindow::savePNG(const std::string& filename)
 	{
-		return render(1.0).save(filename.c_str());
+		return render(getProjectionMatrix(),1.0).save(filename.c_str());
 	}
 
 	bool FigureWindow::savePDF(const std::string& filename)
 	{
-		update();
+		update(true);
 		// Paint to QPicture to explicitly ask for vector graphics.
 		QPicture pic;
 		QPainter p(&pic);
@@ -812,15 +913,39 @@ namespace UtilsQt {
 		status_info->setText(info_text.c_str());
 	}
 
-	void FigureWindow::update()
+	void FigureWindow::update(bool force)
 	{
-		QPixmap display=render(GetSet<double>("General/Magnification/Factor",dictionary));
+		if (updating && !force)
+		{
+			update_pending=true;
+			return;
+		}
+		QMutex mutex;
+		updating=true;
+		mutex.lock();
+		auto P=getProjectionMatrix();
+		double magnification=GetSet<double>("General/Magnification/Factor",dictionary);
+		if (callback_update)
+			if (callback_update(image_source,overlay,*projection,magnification))
+			{
+				callback.ignoreNotifications(true);
+				updatePixmap(false);
+				callback.ignoreNotifications(false);
+			}
+		QPixmap display=render(P,magnification);
 		if (display.width()>0 && display.height()>0)
 		{
 			label->setPixmap(display);
 			label->setFixedSize(display.size());
 		}
 		window->show();
+		updating=false;
+		mutex.unlock();
+		if (update_pending)
+		{
+			update_pending=false;
+			update();
+		}
 	}
 
 	void FigureWindow::setAutoResize(bool auto_resize)

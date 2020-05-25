@@ -229,6 +229,7 @@ namespace GraphicsItems
 			return obj;
 		}
 
+
 		static ConvexMesh Camera(const Geometry::ProjectionMatrix& P, Eigen::Vector4d image_rect_llur, double pixel_spacing, bool highlight=false, const QColor& color=QColor(255,0,0,32))
 		{
 			ConvexMesh obj;
@@ -241,10 +242,10 @@ namespace GraphicsItems
 			obj.p_pos.push_back(sdg.point_on_detector(image_rect_llur[0],image_rect_llur[3]));
 			obj.p_pos.push_back(sdg.point_on_detector(image_rect_llur[0],image_rect_llur[1]));
 			obj.p_pos.push_back(sdg.principal_point_3d);
-			obj.q_index.push_back(Eigen::Vector4i(1,2,3,4));
+			obj.q_index.push_back(Eigen::Vector4i(4,3,2,1));
 			obj.q_color.clear();
 			obj.q_color.push_back(color);
-			obj.q_color_back=QColor(0,0,0,10);
+			obj.q_color_back=QColor(128,128,128,15);
 			obj.q_style=-1;
 			obj.l_color=color;
 			obj.l_color.setAlpha(color.alpha()*4.0>255?255:color.alpha()*4.0);
@@ -277,8 +278,8 @@ namespace GraphicsItems
 		Geometry::SourceDetectorGeometry sdg(P,pixel_spacing);
 		auto pp=Geometry::getCameraPrincipalPoint(P);
 		Geometry::RP3Point O=sdg.principal_point_3d;
-		Geometry::RP3Point U=sdg.point_on_detector(Geometry::RP2Point(image_rect_llur[2],pp[1],1.0));
-		Geometry::RP3Point V=sdg.point_on_detector(Geometry::RP2Point(pp[0],image_rect_llur[3],1.0));
+		Geometry::RP3Point U=sdg.point_on_detector(Geometry::RP2Point(image_rect_llur[0],pp[1],1.0));
+		Geometry::RP3Point V=sdg.point_on_detector(Geometry::RP2Point(pp[0],image_rect_llur[1],1.0));
 		double arrow_head_size_mm=0.1*(Geometry::dehomogenized(O)-Geometry::dehomogenized(U)).norm();
 		group.set("u",Arrow3D(O,U,QColor(255,0,255),2,arrow_head_size_mm,"u"));
 		group.set("v",Arrow3D(O,V,QColor(0,255,255),2,arrow_head_size_mm,"v"));

@@ -37,9 +37,14 @@ namespace NRRD
 		/// A 2D slice of a 3D volume.
 		ImageView(const ImageView<T>& volume, int zindex)
 		{
-			set(volume.size(0), volume.size(1), 1, (T*)volume + zindex*volume.size(0)*volume.size(1));
-			spacing(0)=volume.spacing(0);
-			spacing(1)=volume.spacing(1);
+			if (volume.dimension()<2 || zindex<0 || zindex>=volume.size(2) )
+				set(0x0,0);
+			else
+			{
+				set(volume.size(0), volume.size(1), 1, (T*)volume + zindex*volume.size(0)*volume.size(1));
+				spacing(0)=volume.spacing(0);
+				spacing(1)=volume.spacing(1);
+			}
 		}
 
 		/// Re-interpret fast dimension. Copies meta info but ignores nrrd_header.

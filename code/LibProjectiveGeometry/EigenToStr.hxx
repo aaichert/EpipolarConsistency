@@ -41,6 +41,15 @@ template <> inline Eigen::Vector4d stringTo<>(const std::string& in) { return st
 
 // Vectors of vectors
 
+template <> inline std::string toString<>(const std::vector<Eigen::Vector2i>& in) {return vectorToString(in,";"); }
+template <> inline std::string toString<>(const std::vector<Eigen::Vector3i>& in) {return vectorToString(in,";"); }
+template <> inline std::string toString<>(const std::vector<Eigen::Vector4i>& in) {return vectorToString(in,";"); }
+
+template <> inline std::vector<Eigen::Vector2i> stringTo<>(const std::string& in) { return stringToVector<Eigen::Vector2i>(in,';'); }
+template <> inline std::vector<Eigen::Vector3i> stringTo<>(const std::string& in) { return stringToVector<Eigen::Vector3i>(in,';'); }
+template <> inline std::vector<Eigen::Vector4i> stringTo<>(const std::string& in) { return stringToVector<Eigen::Vector4i>(in,';'); }
+
+
 template <> inline std::string toString<>(const std::vector<Eigen::Vector2d>& in) {return vectorToString(in,";"); }
 template <> inline std::string toString<>(const std::vector<Eigen::Vector3d>& in) {return vectorToString(in,";"); }
 template <> inline std::string toString<>(const std::vector<Eigen::Vector4d>& in) {return vectorToString(in,";"); }
@@ -50,6 +59,11 @@ template <> inline std::vector<Eigen::Vector3d> stringTo<>(const std::string& in
 template <> inline std::vector<Eigen::Vector4d> stringTo<>(const std::string& in) { return stringToVector<Eigen::Vector4d>(in,';'); }
 
 // Matrices
+
+template <> inline std::string toString<>(const Eigen::Matrix2d& in) { return std::string("[") +
+	toString(in(0,0))+" "+toString(in(0,1))+"; "+
+	toString(in(1,0))+" "+toString(in(1,1))+"] ";
+}
 
 template <> inline std::string toString<>(const Eigen::Matrix3d& in) { return std::string("[") +
 	toString(in(0,0))+" "+toString(in(0,1))+" "+toString(in(0,2))+"; "+
@@ -71,6 +85,21 @@ template <> inline std::string toString<>(const Geometry::ProjectionMatrix& in) 
 		<< in(1,0) << " " << in(1,1) << " " << in(1,2) << " " << in(1,3) << "; "
 		<< in(2,0) << " " << in(2,1) << " " << in(2,2) << " " << in(2,3) << "] ";
 	return strstr.str();
+}
+
+template <> inline Eigen::Matrix2d stringTo<>(const std::string& in)
+{
+	Eigen::Matrix2d ret=Eigen::Matrix2d::Identity();
+	std::string s=in;
+	std::replace( s.begin(), s.end(), '[', ' ');
+	std::replace( s.begin(), s.end(), ';', ' ');
+	std::replace( s.begin(), s.end(), ',', ' ');
+	auto raw=stringToVector<double>(s,' ');
+	if (raw.size()>=2*2)
+		for (int i=0;i<2;i++)
+			for (int j=0;j<2;j++)
+				ret(i,j)=raw[i*2+j];
+	return ret;
 }
 
 template <> inline Eigen::Matrix3d stringTo<>(const std::string& in)
