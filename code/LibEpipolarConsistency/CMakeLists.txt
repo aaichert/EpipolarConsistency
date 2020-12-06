@@ -51,13 +51,12 @@ add_library(LibEpipolarConsistencyGui
 	Gui/Visualization.cpp
 	# Input Data
 	Gui/SingleImageMotion.h
-	Gui/SingleImageMotion.cpp
 	# Registration
 	Gui/Registration.h
 	Gui/Registration.cpp
 	# ECC optimization over one input image given several reference images
 	# (e.g. one by one optimimization for FDCT or tracking of Fluoro sequence)
-	Gui/SingleImageMotion.hxx
+	#Gui/SingleImageMotion.hxx
 	# (Inefficiant but simple) implementation of ECC motion correction in FDCT
 	Gui/FDCTMotionCorrection.hxx
 )

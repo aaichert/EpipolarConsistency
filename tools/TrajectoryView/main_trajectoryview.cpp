@@ -667,7 +667,7 @@ void gui(const GetSetInternal::Node& node)
 			GetSet<Eigen::Matrix4d>("3D Transform", geometry)=Eigen::Matrix4d::Identity();
 			overlay.clear();
 			g_app.ignoreNotifications(false);
-			GetSet<>("Trajectory/Projection Matrices")=GetSet<>("Trajectory/Projection Matrices");
+			GetSet<>("Trajectory/Projection Matrices")=GetSet<>("Trajectory/Projection Matrices").getValue();
 		}
 
 		if (hasPrefix(node.super_section,"Transform/Geometry/2D Parameters"))

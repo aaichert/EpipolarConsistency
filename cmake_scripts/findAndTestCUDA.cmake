@@ -21,7 +21,7 @@ if(CUDA_FOUND)
         set(CUDA_HAVE_GPU FALSE CACHE BOOL "Whether CUDA-capable GPU is present")
     endif()
 	# nvcc flags
-	set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};--gpu-architecture sm_30)
+	set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};--gpu-architecture sm_50)
 	option(CUDA_NVCC_DEBUGGING "Build CUDA code with NVCC debug info (-g;-G)" OFF)
 	if(CUDA_NVCC_DEBUGGING)
 		set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-g;-G)
