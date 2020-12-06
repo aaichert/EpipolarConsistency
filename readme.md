@@ -9,7 +9,7 @@ The projects contained in this repository use the CMake build environment. You c
 
 
 
-# Building LibEpipolarConsietency using Microsoft Windows, Visual Studio and CMake.
+# Building LibEpipolarConsistency using Microsoft Windows, Visual Studio and CMake.
 
 I'm sure Linux folks will manage on their own.
 
@@ -25,61 +25,15 @@ Prerequisites
 	
 ## 1) Building NLopt
 
-As of June 2016, NLopt binaries are provided on Windows only for MinGW. While the C-interface can be used directly, the c++ interface (which we will use) is not binary compatible. See also https://chadaustin.me/cppinterface.html for more info.
+You can download NLopt from https://nlopt.readthedocs.io/en/latest/ 
+It now comes perbuilt with cmake.
 
-We have to build it ourselves:
-
-1. Step   I,   Download and uncompress latest sources from http://ab-initio.mit.edu/wiki/index.php/NLopt
-2. Step   II,  Go to http://ab-initio.mit.edu/wiki/index.php/NLopt_on_Windows and download CMakeLists.txt config.cmake.h.in to your NLopt directory.
-3. Step   III, Run Cmake GUI and specify your NLopt directory and a build directory
-```
-            (example:)
-                Where is the source code: -> C:/Development/nlopt-2.4.2
-		        Where to build the binaries:  -> C:/Development/nlopt-2.4.2/build
-```
-4. Step IV,    Click configure and select your version of Visual Studio.
-5. Step  V,    Set CMAKE_INSTALL_PREFIX to where you would like to install nlopt to.
-```
-            (example:)
-                CMAKE_INSTALL_PREFIX -> C:/Development/extern/nlopt-2.4.2
-```
-6. Step  VI,   Click Configure and Generate again. Open your nlopt-2.4.2/build/NLOPT.sln in Visual Studio. Change your configuration type to Release in the Configuration Manager
-7. Step  VII,  In the Solution Explorer, right-click the "INSTALL" project and select "Build".
-```
-            (example: the following files should be created:)
-                C:/Development/extern/nlopt-2.4.2/include/nlopt.h
-                C:/Development/extern/nlopt-2.4.2/include/nlopt.hpp
-                C:/Development/extern/nlopt-2.4.2/include/nlopt.f
-                C:/Development/extern/nlopt-2.4.2/lib/nlopt-0.dll			
-```
-Note that as of June 2016 the CMakeLists.txt file does NOT create a proper config.cmake file for FIND_PACKAGE in the export directory.
-Note also that the nlopt-0.dll is actually a static library if you left BUILD_SHARED_LIBS unchecked (preferably).
-Basically, someone should really fix the CMakeLists.txt file. (Perhaps I will...)
-
-At this point, you can delete the sources.
-
-```
-(example:)
-    delete "C:/Development/nlopt-2.4.2" but keep "C:/Development/extern/nlopt-2.4.2"
-```
-
-IF YOU ENCOUNTER THE ERROR
-```
-    1>nlopt.dir/Release/cobyla.obj : fatal error LNK1136: invalid or corrupt file
-```
-    Work-around: There appears to be a bug in the optimizer of cl.exe. Disable optimization for nlopt/cobyla.c by right-clicking in the solution explorer and selecting properties. Set "Configuration Properties/C-C++/Optimization" to "Disabled (/Od)" Then rebuild.
-
-## 2) Building LibGetSet from SourceForge
+## 2) Building LibGetSet
 
 If you would like to use the test/demo program, you will need to build another library straight from SourceForge.
 
-1. Step   I,   Go to https://sourceforge.net/projects/getset/ and download the source code.
-```
-			(example:)
-			    Go to https://sourceforge.net/p/getset/code/ci/master/tree/ and click "Download Snapshot" and unpack to C:/Development/GetSet
-			    alternative:
-			    git clone git://git.code.sf.net/p/getset/code "C:/Development/GetSet"
-```
+1. Step   I,   Go to https://github.com/aaichert/LibGetSet and download the source code.
+
 2. Step   II,  Run Cmake GUI and specify your GetSet directory and a build directory
 ```
             (example:)
@@ -118,35 +72,31 @@ At this point, you can delete the sources. Anyone with the same compiler and sam
 (example:)
     delete "C:/Development/GetSet" but keep "C:/Development/extern/GetSet"
 ```
-## 3) Building LibEpipolarConsietency
+## 3) Building LibEpipolarConsistency
 
-1. Step   I,   Uncompress the LibEpipolarConsietency sources
+1. Step   I,   Uncompress the LibEpipolarConsistency sources
 ```
             (example:)
-                C:/Development/LibEpipolarConsietency
+                C:/Development/LibEpipolarConsistency
 ```
-2. Step   II,  Run Cmake GUI and specify your LibEpipolarConsietency directory and a build directory
+2. Step   II,  Run Cmake GUI and specify your LibEpipolarConsistency directory and a build directory
 ```
             (example:)
-                Where is the source code: -> C:/Development/LibEpipolarConsietency
-		        Where to build the binaries:  -> C:/Development/LibEpipolarConsietency/build
+                Where is the source code: -> C:/Development/LibEpipolarConsistency
+		        Where to build the binaries:  -> C:/Development/LibEpipolarConsistency/build
 ```
 3. Step   III, Click Configure and select your version of Visual Studio.
-4. Step IV,    Due to the lack of a proper CMakeLists.txt file we need to select the paths to NLopt include directory and library manually.
-```
-            (example:)
-                NLOPT_INCLUDE_PATH -> C:/Development/extern/nlopt-2.4.2/include
-				NLOPT_INCLUDE_LIBRARY -> C:/Development/extern/nlopt-2.4.2/lib/nlopt-0.dll
-```
+4. Step IV,    The NLOPT_DIR has to be set to the cmake directory deep inside the nlopt directory.
+
 5. Step  V,    Make sure other libraries (CUDA (optional), Eigen) could be located
 ```
             (example:)
-                EIGEN_INCLUDE_DIR -> C:/Development/extern/eigen-3.2.4
+                EIGEN_INCLUDE_DIR -> C:/Development/extern/eigen-3.3.3
 ```
-6. Step  VI,   Click Configure and Generate again. Open your LibEpipolarConsietency/build/EpipolarConsietency.sln in Visual Studio.
+6. Step  VI,   Click Configure and Generate again. Open your LibEpipolarConsistency/build/EpipolarConsietency.sln in Visual Studio.
 7. Step  VII,  In the Solution Explorer, right-click the "INSTALL" project and select "Build". (This is the debug build) Change your configuration type to Release in the Configuration Manager and build project "INSTALL" again
 
-At this point, anyone with the same compiler (i.e. version of Visual Studio) will be able to use LibEpipolarConsietency if you send them ONLY the directory that you specified as CMAKE_INSTALL_PREFIX. As mentioned earlier, see also https://chadaustin.me/cppinterface.html for more info.
+At this point, anyone with the same compiler (i.e. version of Visual Studio) will be able to use LibEpipolarConsistency if you send them ONLY the directory that you specified as CMAKE_INSTALL_PREFIX. As mentioned earlier, see also https://chadaustin.me/cppinterface.html for more info.
 ```
 (example:)
     compress the directory "C:/Development/EpipolarConsietency/export" and send compressed file by mail.
@@ -155,7 +105,7 @@ At this point, anyone with the same compiler (i.e. version of Visual Studio) wil
 ## 4) Notes
 
 # 4.1) Notes on using Eigen
-The Eigen library is entirely header-only. All you need to do is download a source zip from http://eigen.tuxfamily.org/ and unpack it.
+The Eigen library is entirely header-only. There have been breaking changes since version 3.3 . To prevent linking errors when building this repo, please resort to using this old version here: https://gitlab.com/libeigen/eigen/-/releases/3.3.0
 
 
 # 4.1) Notes on using Qt
@@ -166,9 +116,9 @@ It saves some time later on if you set the environment variable CMAKE_PREFIX_PAT
     CMAKE_PREFIX_PATH -> C:/Qt/5.6/msvc2013_64/lib/cmake
 ```
 
-# 4.2) Notes on using LibEpipolarConsietency from a different project
+# 4.2) Notes on using LibEpipolarConsistency from a different project
 
-Section 3) mentions, that it is possibly to ship LibEpipolarConsietency just by copying the files in the install directory. Setting up a project with CMake that includes LibEpipolarConsietency should be straight-forward.
+Section 3) mentions, that it is possibly to ship LibEpipolarConsistency just by copying the files in the install directory. Setting up a project with CMake that includes LibEpipolarConsistency should be straight-forward.
 
 1. Step   I,   Create your c++ file (example: main.cpp)
 2. Step   II,  Create a CMakeLists.txt file and add the following information to it:
@@ -176,15 +126,15 @@ Section 3) mentions, that it is possibly to ship LibEpipolarConsietency just by 
             cmake_minimum_required(VERSION 3.5.2)
 			project(ECC_Test)
             find_package(LibProjectiveGeometry)
-            find_package(LibEpipolarConsietency)
+            find_package(LibEpipolarConsistency)
 			add_executable(ECC main.cpp)
-			target_link_libraries(ECC LibProjectiveGeometry LibEpipolarConsietency)
+			target_link_libraries(ECC LibProjectiveGeometry LibEpipolarConsistency)
 ```
 3. Step   III, Run Cmake GUI and specify your source directory and a build directory as always.
-4. Step IV,    Click Configure and set LibEpipolarConsietency_DIR to where you placed the library
+4. Step IV,    Click Configure and set LibEpipolarConsistency_DIR to where you placed the library
 ```
  			(example:)
-			    LibEpipolarConsietency_DIR -> C:/Development/extern/LibEpipolarConsietency
+			    LibEpipolarConsistency_DIR -> C:/Development/extern/LibEpipolarConsistency
 ```
 5. Step  V,    Click Configure and Generate again. Open your build/ECC_Test.sln in Visual Studio. And have fun.
 
