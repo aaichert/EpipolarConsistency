@@ -6,7 +6,7 @@ if (CUDA_HAVE_GPU)
 	# )
 	# target_link_libraries(TestUtilsCuda LibUtilsCuda LibProjectiveGeometry)
 
-	cuda_add_library(LibUtilsCuda STATIC
+	add_library(LibUtilsCuda STATIC
 		CudaTextureArray.hxx
 		CudaBindlessTexture.h
 		CudaBindlessTexture.cpp
@@ -16,8 +16,8 @@ if (CUDA_HAVE_GPU)
 		CudaAlgorithms.h
 		CudaAlgorithms.cpp
 		CudaConvolution.cu
-		OPTIONS -DHAS_CUDA="Cuda Support"
 	)
+	add_definitions(-DHAS_CUDA="Cuda Support")
 	install(FILES UtilsCuda.hxx CudaTextureArray.hxx CudaMemory.h CudaAlgorithms.h CudaBindlessTexture.h DESTINATION include/LibUtilsCuda)
 
 	install(TARGETS LibUtilsCuda DESTINATION lib EXPORT LibUtilsCuda-targets)

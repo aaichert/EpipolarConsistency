@@ -1,6 +1,6 @@
 
 # A library to evaluate a metric of epipolar consistency
-cuda_add_library(LibEpipolarConsistency
+add_library(LibEpipolarConsistency
 	# Common methods for ECC direct and with Radon intermediate
 	EpipolarConsistency.h
 	EpipolarConsistency.cpp
@@ -26,9 +26,9 @@ cuda_add_library(LibEpipolarConsistency
 	RadonIntermediate.h
 	RadonIntermediate.cpp
 	RadonIntermediate.cu
-	OPTIONS -DHAS_CUDA="Cuda Support"
 )
 target_link_libraries(LibEpipolarConsistency LibProjectiveGeometry LibUtilsCuda ${CUDA_CUFFT_LIBRARIES} )
+add_definitions(-DHAS_CUDA="Cuda Support")
 install(FILES EpipolarConsistencyCommon.hxx EpipolarConsistency.h EpipolarConsistencyDirect.h RectifiedFBCC.h RadonIntermediate.h EpipolarConsistencyRadonIntermediate.h DESTINATION include/LibEpipolarConsistency)
 install(TARGETS LibEpipolarConsistency DESTINATION lib EXPORT LibEpipolarConsistency-targets)
 install(EXPORT LibEpipolarConsistency-targets DESTINATION cmake)
