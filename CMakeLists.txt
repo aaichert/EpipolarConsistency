@@ -80,8 +80,6 @@ find_package(NLopt REQUIRED)
 #set(NLOPT_INCLUDE_PATH "/usr/include" CACHE PATH "Directory containing nlopt.h/hpp")
 include_directories(${NLOPT_INCLUDE_DIRS})
 
-# Add CUDA
-include(cmake_scripts/findAndTestCUDA.cmake)
 
 # Add Qt5
 find_package(Qt5Widgets)
