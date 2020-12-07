@@ -1,5 +1,5 @@
 
-cuda_add_library(LibRayCastBackproject
+add_library(LibRayCastBackproject
 	VolumeRendering.h
 	VolumeRendering.cpp
 	VoxelData.h

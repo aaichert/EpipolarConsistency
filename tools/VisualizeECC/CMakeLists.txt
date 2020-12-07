@@ -1,5 +1,5 @@
 
-cuda_add_executable(VisualizeECC
+add_executable(VisualizeECC
 	draw_epipolar_lines.hxx
 	VisualizeECC.cpp
 )
@@ -8,7 +8,7 @@ qt5_use_modules(VisualizeECC Widgets Svg OpenGL PrintSupport)
 install(TARGETS VisualizeECC DESTINATION bin)
 set_property(TARGET VisualizeECC PROPERTY FOLDER "EpipolarConsistency") 
 
-cuda_add_executable(VisualizeECC_RadonIntermediate
+add_executable(VisualizeECC_RadonIntermediate
 	draw_epipolar_lines.hxx
 	VisualizeECC_RadonIntermediate.cpp
 )
@@ -17,7 +17,7 @@ qt5_use_modules(VisualizeECC_RadonIntermediate Widgets Svg OpenGL PrintSupport)
 install(TARGETS VisualizeECC_RadonIntermediate DESTINATION bin)
 set_property(TARGET VisualizeECC_RadonIntermediate PROPERTY FOLDER "EpipolarConsistency") 
 
-cuda_add_executable(VisualizeECC_ComputedTomography
+add_executable(VisualizeECC_ComputedTomography
 	draw_epipolar_lines.hxx
 	VisualizeECC_ComputedTomography.cpp
 )
