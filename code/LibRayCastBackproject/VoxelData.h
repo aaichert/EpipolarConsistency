@@ -42,7 +42,7 @@ namespace VolumeRendering {
 		VoxelData& centerVolume();
 
 		/// Use empty space skipping
-		VoxelData& VoxelData::emptySpaceSkipping(int bin_factor=16);
+		VoxelData& emptySpaceSkipping(int bin_factor=16);
 
 		// Number of voxels in dimension = 1,2,3
 		int size(int dim) const {return volume_size_vx[dim];}

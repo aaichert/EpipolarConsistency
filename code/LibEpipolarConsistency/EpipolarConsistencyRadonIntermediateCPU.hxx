@@ -168,7 +168,7 @@ namespace EpipolarConsistency
 		}
 
 		/// Compute geometric consitency metric for one pair of views.
-		static double MetricCPU::computeForImagePair(
+		static double computeForImagePair(
 			const Eigen::Vector4d			&C0,			//< Camera center 0 (dehomogenized)
 			const Eigen::Vector4d			&C1,			//< Camera center 1 (dehomogenized)
 			const ProjectionMatrix			&P0,			//< Projection matrix for image 0, normalized to det(M)>0 and |m3|=1

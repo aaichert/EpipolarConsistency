@@ -10,6 +10,8 @@ namespace UtilsCuda {
 	template <typename T> class MemoryBlock;
 } // namespace UtilsCuda
 
+#include "EpipolarConsistencyCommon.hxx"
+
 namespace EpipolarConsistency
 {
 	/// Compute derivative in t-direction of Radon transform of x-ray projection data.

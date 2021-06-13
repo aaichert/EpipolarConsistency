@@ -4,6 +4,8 @@
 #include <LibUtilsCuda/CudaMemory.h>
 #include <LibUtilsCuda/CudaBindlessTexture.h>
 
+#include <cmath>
+
 const double Pi=3.1415926535897931;
 
 /// CUDA implementation of radon transformation based on explicit formulation of the line equation and evaluation (more flexible)

@@ -18,6 +18,8 @@
 
 namespace SimpleGL
 {
+	class GLSLProgram;
+
 	/// Check for OpenGL errors. Also note CHECK_GL_ERROR macro
 	bool checkError();
 
@@ -181,12 +183,12 @@ namespace SimpleGL
 
 		/// calls a render Function
 		template <class Callback>
-		static void call(const Callback& function)
+		void call(const Callback& function)
 		{ function(); }
 
 		/// calls a render or resize function taking width and height of render target as arguments
 		template <class Callback_int_int>
-		static void callWithSize(Callback_int_int& function)
+		void callWithSize(Callback_int_int& function)
 		{ function(m_x, m_y); }
 				
 	};

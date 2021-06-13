@@ -346,7 +346,7 @@ namespace EpipolarConsistency
 		computeK01(
 			n_u*0.5f,n_v*0.5f,
 			C0f.data(),C1f.data(),P0invTf.data(),P1invTf.data(),
-			(float)getObjectRadius(),std::sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
+			(float)getObjectRadius(),sqrtf((float)(n_u*n_u+n_v*n_v)),(float)dkappa,
 			K0,K1);
 		// Make sure we have data available on CPU
 		dtr0.readback();
@@ -367,8 +367,8 @@ namespace EpipolarConsistency
 		for (float kappa=-kappa_max+0.5f*dkappa; kappa<kappa_max; kappa+=dkappa)
 		{
 			// Compute cosine and sine of kappa
-			float x0=std::cosf(kappa);
-			float x1=std::sinf(kappa);
+			float x0=cosf(kappa);
+			float x1=sinf(kappa);
 
 			// Find corresponding epipolar lines for plane at angle kappa (same as culaut::xgemm<float,3,2,1>(K,x_k,l);)
 			float line0[]={K0[0]*x0+K0[3]*x1,K0[1]*x0+K0[4]*x1,K0[2]*x0+K0[5]*x1};

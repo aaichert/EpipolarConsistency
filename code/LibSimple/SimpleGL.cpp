@@ -337,7 +337,7 @@ RenderToTexture::~RenderToTexture()
 
 	UniformInterface::~UniformInterface()
 	{
-		GLSLProgram::uniform_map::iterator it=owner->m_uniforms.find(m_name);
+		GLSLProgram::uniform_map::iterator it=this->owner->m_uniforms.find(m_name);
 		// if (it->second==this) owner->m_uniforms.erase(it); // FIXME
 	}
 

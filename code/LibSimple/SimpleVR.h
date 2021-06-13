@@ -108,7 +108,7 @@ namespace SimpleVR
 			SimpleVR::RayCastPass* rayCastPass=0x0);
 
 		/// Initialize volume rendering with an existing 3D Texture
-		bool VolumeRenderer::init(SimpleGL::Texture* vol3d,
+		bool init(SimpleGL::Texture* vol3d,
 			SimpleVR::ProxyGeomSetup* rayGeom=0x0,
 			SimpleVR::RayCastPass* rayCastPass=0x0);
 

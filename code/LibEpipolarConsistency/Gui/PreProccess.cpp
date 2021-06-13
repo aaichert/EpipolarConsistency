@@ -160,7 +160,7 @@ namespace EpipolarConsistency
 				auto &pixel=image.pixel(u,v);
 				float pou=(float)u-ppu;
 				float pov=(float)v-ppv;
-				float cos_weight=sdd_px/std::sqrtf(pou*pou+pov*pov+sdd_px*sdd_px);
+				float cos_weight=sdd_px/sqrtf(pou*pou+pov*pov+sdd_px*sdd_px);
 				pixel*=cos_weight;
 			}
 	}

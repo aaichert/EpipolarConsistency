@@ -51,6 +51,7 @@ if(MSVC)
 endif()
 
 # I'd rather use current standards
+set (CMAKE_CXX_STANDARD 11)
 if(CMAKE_COMPILER_IS_GNUCXX)
     add_definitions(-std=c++11)
     # and a console window under windows

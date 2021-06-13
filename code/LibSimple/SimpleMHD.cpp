@@ -81,9 +81,9 @@ namespace  MHD
 
 	double DataInterface::sample_voxel(double x, double y, double z, int c) const
 	{
-		int ix=(int)std::floor(x);
-		int iy=(int)std::floor(y);
-		int iz=(int)std::floor(z);
+		int ix=(int)floor(x);
+		int iy=(int)floor(y);
+		int iz=(int)floor(z);
 		x-=ix;
 		y-=iy;
 		z-=iz;

@@ -22,7 +22,7 @@ namespace EpipolarConsistency
 	struct BoundingBox : public GetSetGui::Configurable {
 		struct Style {
 			bool            wire_cube=false;
-			Eigen::Vector3d color=Eigen::Vector3d(0,0,1,0.5);
+			Eigen::Vector3d color=Eigen::Vector3d(0,0,1);
 			int             line_width=2;
 		} style;
 		struct Corners {

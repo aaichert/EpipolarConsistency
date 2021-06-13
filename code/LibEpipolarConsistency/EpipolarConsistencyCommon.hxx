@@ -119,8 +119,8 @@ __device__ __host__ inline void computeK01(
 	float B13=C0[1]*C1[3]-C0[3]*C1[1];
 	float B23=C0[2]*C1[3]-C0[3]*C1[2];
 	// Normalize by line moment of baseline
-	const float s2=std::sqrtf(B12*B12+B02*B02+B01*B01);
-	const float s3=std::sqrtf(B03*B03+B13*B13+B23*B23); //< Distance between source positions if C0[3]==C1[3]
+	const float s2=sqrtf(B12*B12+B02*B02+B01*B01);
+	const float s3=sqrtf(B03*B03+B13*B13+B23*B23); //< Distance between source positions if C0[3]==C1[3]
 	// K is a 4x2 matrix mapping [cos(kappa) sin(kappa)] to epipolar plane E_kappa.
 	// It consists of two planes E0 and E90, (i.e. for kappa=0 and kappa=90°) both of which contain the baseline.
 	float K[] = {

@@ -75,7 +75,7 @@ namespace EpipolarConsistency
 			std::vector<float> *kappas=0x0);
 
 		/// Evaluate for just tow images i and j and  return redundant values and sample locations in the Radon transforms (visualization only - slow, not using GPU)
-		double MetricRadonIntermediate::evaluateForImagePair(int i, int j,
+		double evaluateForImagePair(int i, int j,
 			std::vector<float> *redundant_samples0, std::vector<float> *redundant_samples1,
 			std::vector<float> *kappas,
 			std::vector<std::pair<float,float> > *radon_samples0,

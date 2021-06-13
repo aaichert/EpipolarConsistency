@@ -7,9 +7,11 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 #include <sstream>
 #include <fstream>
 #include <map>
+#include <cmath>
 
 #include "BufferUtils.h"
 
