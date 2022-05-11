@@ -8,7 +8,7 @@ install(TARGETS Registration DESTINATION bin)
 set_property(TARGET Registration PROPERTY FOLDER "EpipolarConsistency") 
 
 
-cuda_add_executable(RegistrationIntensityBased
+add_executable(RegistrationIntensityBased
 	RegistrationIntensityBased.cpp
 	warp3d.cu
 )

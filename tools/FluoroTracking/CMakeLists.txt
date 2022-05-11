@@ -1,7 +1,7 @@
 
 #remove cuda_
 
-cuda_add_executable(FluoroTracking
+add_executable(FluoroTracking
 	FluoroTracking.cpp
 )
 target_link_libraries( FluoroTracking LibProjectiveGeometry LibEpipolarConsistency LibEpipolarConsistencyGui LibUtilsQt LibUtilsCuda GetSet GetSetGui ${OPENGL_LIBRARIES} ${NLOPT_LIBRARIES})
