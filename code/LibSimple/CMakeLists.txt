@@ -19,5 +19,4 @@ add_library(LibSimple
 	SimpleRayCastPass.h
 	SimpleRayCastPass.cpp
 )
-target_link_libraries(LibSimple GLAD)
-qt5_use_modules(LibSimple Widgets OpenGL)
+target_link_libraries(LibSimple GLAD Qt6::Widgets Qt6::OpenGL)

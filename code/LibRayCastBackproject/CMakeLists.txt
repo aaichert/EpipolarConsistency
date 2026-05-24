@@ -21,8 +21,7 @@ cuda_add_library(LibRayCastBackproject
 )
 
 # DEBUG ONLY LibUtilsQt
-target_link_libraries(LibRayCastBackproject LibProjectiveGeometry LibUtilsCuda LibUtilsQt GetSet)
-qt5_use_modules(LibRayCastBackproject Core Gui Widgets)
+target_link_libraries(LibRayCastBackproject LibProjectiveGeometry LibUtilsCuda LibUtilsQt GetSet Qt6::Core Qt6::Gui Qt6::Widgets)
 set_property(TARGET LibRayCastBackproject PROPERTY FOLDER "Packages") 
 
 install(FILES VolumeRendering.h DESTINATION include/LibRayCastBackproject)

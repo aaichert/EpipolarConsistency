@@ -1,5 +1,5 @@
-# We need cmake version 3.2.2 or higher
-cmake_minimum_required(VERSION 3.2.2)
+# We need cmake version 3.21 or higher for Qt6 support
+cmake_minimum_required(VERSION 3.21)
 
 ############################################################
 # Epipolar Consistency Conditions in X-ray imaging.
@@ -84,14 +84,12 @@ include_directories(${NLOPT_INCLUDE_DIRS})
 # Add CUDA
 include(cmake_scripts/findAndTestCUDA.cmake)
 
-# Add Qt5
-find_package(Qt5Widgets)
+# Add Qt6
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets OpenGL PrintSupport Svg)
 find_package(OpenGL)
-find_package(Qt5OpenGL)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-include(cmake_scripts/qt5_win32_copy_dlls.cmake)
 
 # Add GetSet
 find_package(GetSet REQUIRED)
