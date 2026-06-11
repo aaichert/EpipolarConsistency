@@ -4,6 +4,8 @@
 
 #include <QPicture>
 #include <QPrinter>
+#include <QPageLayout>
+#include <QPageSize>
 
 QCameraView::QCameraView(QWidget* parent, UtilsQt::ProjectionParameters * proj)
 	: QWidget(parent)
@@ -49,8 +51,8 @@ void QCameraView::savePDF(const std::string& path)
 	QPrinter printer;
 	printer.setOutputFormat(QPrinter::PdfFormat);
 	printer.setOutputFileName(path.c_str());
-	printer.setPageMargins(0,0,0,0,QPrinter::Unit::Millimeter);
-	printer.setPaperSize(QSizeF((double)width()/100,(double)height()/100), QPrinter::Unit::Inch);
+	printer.setPageMargins(QMarginsF(0,0,0,0), QPageLayout::Millimeter);
+	printer.setPageSize(QPageSize(QSizeF((double)width()/100,(double)height()/100), QPageSize::Inch));
 
 	// Finally, print to PDF
 	QPainter pdf_painter(&printer);
@@ -60,24 +62,24 @@ void QCameraView::savePDF(const std::string& path)
 
 void QCameraView::mousePressEvent(QMouseEvent *event)
 {
-	int x=event->x();
-	int y=event->y();
+	int x=(int)event->position().x();
+	int y=(int)event->position().y();
 	m_mouseX=x;
 	m_mouseY=y;
-	m_mouseDown=event->button();
-	if (mouseFunc) mouseFunc(event->button()-1,1,x,y); 
+	m_mouseDown=(int)event->button();
+	if (mouseFunc) mouseFunc((int)event->button()-1,1,x,y); 
 }
 
 void QCameraView::mouseReleaseEvent(QMouseEvent *event)
 {
 	m_mouseDown=0;
-	if (mouseFunc) mouseFunc(event->button()-1,0,event->x(), event->y()); 
+	if (mouseFunc) mouseFunc((int)event->button()-1,0,(int)event->position().x(), (int)event->position().y()); 
 }
 
 void QCameraView::mouseMoveEvent(QMouseEvent *event)
 {
-	int x=event->x();
-	int y=event->y();
+	int x=(int)event->position().x();
+	int y=(int)event->position().y();
 	int dx=m_mouseX-x;
 	int dy=m_mouseY-y;
 	m_mouseX=x;	

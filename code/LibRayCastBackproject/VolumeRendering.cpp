@@ -1,4 +1,4 @@
-#include <VolumeRendering.h>
+#include "VolumeRendering.h"
 
 #include <LibUtilsCuda/CudaMemory.h>
 #include <LibUtilsCuda/CudaBindlessTexture.h>

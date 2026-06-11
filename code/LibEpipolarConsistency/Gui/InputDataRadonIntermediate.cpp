@@ -5,7 +5,7 @@
 #ifdef _HAS_UTILS_QT
 #include "DisplayGeometry.hxx"
 #include <GetSetGui/GetSetModalDialog.h>
-#include <EpipolarConsistencyRadonIntermediate.h>
+#include <LibEpipolarConsistency/EpipolarConsistencyRadonIntermediate.h>
 #endif // _HAS_UTILS_QT
 
 namespace EpipolarConsistency {

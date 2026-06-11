@@ -7,7 +7,7 @@
 #include "nrrdqt.hxx"
 
 #include <QApplication>
-#include <QDesktopWidget>
+#include <QScreen>
 
 #include <GetSetGui/GetSetModalDialog.h>
 
@@ -252,7 +252,7 @@ namespace UtilsQt {
 			auto& figure=FigureWindow::instance(name);
 			if (w==0) w=figure.window->width();
 			if (h==0) h=figure.window->height();
-			QRect rect=QApplication::desktop()->availableGeometry(figure.window);
+			QRect rect=figure.window->screen()->availableGeometry();
 			int num_columns=rect.width()/(w+space_w);
 			int index_column=index%num_columns;
 			int index_row=index/num_columns;
@@ -273,8 +273,8 @@ namespace UtilsQt {
 			auto& figure=FigureWindow::instance(name);
 			std::string info_text=toString(figure.pixmap.width())+" x "+toString(figure.pixmap.height())+" px  / ";
 			if      (min_intensity==0)  info_text+="Intensity maximum: " + toString (max_intensity);
-			else if (mean_intensity==0) info_text+="Intensity range: ± " + toString (half_width);
-			else                        info_text+="Intensity window: " +toString(mean_intensity) + " ± " +toString(half_width);
+			else if (mean_intensity==0) info_text+="Intensity range: Â± " + toString (half_width);
+			else                        info_text+="Intensity window: " +toString(mean_intensity) + " Â± " +toString(half_width);
 			return info(info_text);
 		}
 

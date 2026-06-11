@@ -1,33 +1,23 @@
-# Add CUDA
-find_package(CUDA)
-if(CUDA_FOUND)
-    try_run(RUN_RESULT_VAR COMPILE_RESULT_VAR
-        ${CMAKE_BINARY_DIR} 
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake_scripts/has_cuda_gpu.cpp
-        CMAKE_FLAGS 
-            -DINCLUDE_DIRECTORIES:STRING=${CUDA_TOOLKIT_INCLUDE}
-            -DLINK_LIBRARIES:STRING=${CUDA_CUDART_LIBRARY}
-        COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT_VAR
-        RUN_OUTPUT_VARIABLE RUN_OUTPUT_VAR)
-    message("${RUN_OUTPUT_VAR}") # Display number of GPUs found
-    # COMPILE_RESULT_VAR is TRUE when compile succeeds
-    # RUN_RESULT_VAR is zero when a GPU is found
-	if(NOT COMPILE_RESULT_VAR)
-		 message("Compilation of a simple CUDA program failed. Please check if CUDA is installed correctly.")
-	endif()
-    if(COMPILE_RESULT_VAR AND NOT RUN_RESULT_VAR)
-        set(CUDA_HAVE_GPU TRUE CACHE BOOL "Whether CUDA-capable GPU is present")
-    else()
-        set(CUDA_HAVE_GPU FALSE CACHE BOOL "Whether CUDA-capable GPU is present")
-    endif()
-	# nvcc flags
-	set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};--gpu-architecture sm_50)
-	option(CUDA_NVCC_DEBUGGING "Build CUDA code with NVCC debug info (-g;-G)" OFF)
-	if(CUDA_NVCC_DEBUGGING)
-		set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-g;-G)
-	endif()
-	option(CUDA_NVCC_VERBOSE "Verbose output of NVCC" OFF)
-	if(CUDA_NVCC_VERBOSE)
-		set(CUDA_NVCC_FLAGS --ptxas-options=-v;-lineinfo)
-	endif(CUDA_NVCC_VERBOSE)
-endif(CUDA_FOUND)
+## Modern CUDA support via CMake language integration
+if(POLICY CMP0146)
+    cmake_policy(SET CMP0146 NEW)
+endif()
+
+## Project() already declared CUDA as a language; CMake handles nvcc compilation.
+## For libraries (e.g., cufft), find them explicitly if needed at link time.
+
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_EXTENSIONS OFF)
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+set(CMAKE_CUDA_ARCHITECTURES native)
+
+set(CUDA_HAVE_GPU TRUE CACHE BOOL "Whether CUDA support is available" FORCE)
+
+## Attempt to find CUDA libraries if CUDAToolkit is available; otherwise rely on system paths.
+find_package(CUDAToolkit QUIET)
+if(CUDAToolkit_FOUND)
+    message(STATUS "CUDAToolkit found: ${CUDAToolkit_VERSION}")
+else()
+    message(STATUS "CUDAToolkit not found; using system CUDA libraries if available")
+endif()

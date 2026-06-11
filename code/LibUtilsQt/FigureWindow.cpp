@@ -8,6 +8,8 @@
 #include <QTransform>
 #include <QPicture>
 #include <QPrinter>
+#include <QPageLayout>
+#include <QPageSize>
 #include <QScrollArea>
 #include <QMenuBar>
 #include <QMenu>
@@ -897,8 +899,8 @@ namespace UtilsQt {
 		QPrinter printer;
 		printer.setOutputFormat(QPrinter::PdfFormat);
 		printer.setOutputFileName(filename.c_str());
-		printer.setPageMargins(0,0,0,0,QPrinter::Unit::Millimeter);
-		printer.setPaperSize(QSizeF((double)pixmap.width(),(double)pixmap.height()), QPrinter::Unit::DevicePixel);
+		printer.setPageMargins(QMarginsF(0,0,0,0), QPageLayout::Millimeter);
+		printer.setPageSize(QPageSize(QSizeF((double)pixmap.width(),(double)pixmap.height()), QPageSize::Point));
 
 		// Finally, print to PDF
 		QPainter pdf_painter(&printer);

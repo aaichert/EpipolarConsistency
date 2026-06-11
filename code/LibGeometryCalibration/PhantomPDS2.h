@@ -1,7 +1,7 @@
 #ifndef __phantompds2_hxx
 #define __phantompds2_hxx
 
-#include <GeometryCalibration.h>
+#include "GeometryCalibration.h"
 
 #include <NRRD/nrrd_image.hxx>
 

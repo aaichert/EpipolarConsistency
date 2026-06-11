@@ -5,6 +5,7 @@
 #include "QCustomPlot.h"
 
 #include <QFileDialog>
+#include <QScreen>
 
 #include <numeric>
 
@@ -127,7 +128,7 @@ namespace UtilsQt {
 			auto& plot=plotByTitle(title);
 			if (w==0) w=plot.width();
 			if (h==0) h=plot.height();
-			QRect rect=QApplication::desktop()->availableGeometry(&plot);
+			QRect rect=plot.screen()->availableGeometry();
 			int num_columns=rect.width()/(w+space_w);
 			int index_column=index%num_columns;
 			int index_row=index/num_columns;
@@ -298,7 +299,7 @@ namespace UtilsQt {
 			/// Set the data from std::vectors
 			Graph& setData(const std::vector<double>& x, const std::vector<double>& y)
 			{
-				graph.setData(QVector<qreal>::fromStdVector(x),QVector<qreal>::fromStdVector(y));
+				graph.setData(QVector<qreal>(x.begin(), x.end()), QVector<qreal>(y.begin(), y.end()));
 				return *this;
 			}
 

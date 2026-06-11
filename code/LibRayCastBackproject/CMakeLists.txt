@@ -1,5 +1,6 @@
 
-cuda_add_library(LibRayCastBackproject
+
+add_library(LibRayCastBackproject
 	VolumeRendering.h
 	VolumeRendering.cpp
 	VoxelData.h
@@ -15,14 +16,21 @@ cuda_add_library(LibRayCastBackproject
 	vr_raycast_iso.cu
 	vr_raycast_mip.cu
 	vr_raycast_debug.cu
-	# 2do only if GetSet is available.
 	VolumeRenderingGui.h
 	VolumeRenderingGui.cpp
 )
 
 # DEBUG ONLY LibUtilsQt
-target_link_libraries(LibRayCastBackproject LibProjectiveGeometry LibUtilsCuda LibUtilsQt GetSet)
-qt5_use_modules(LibRayCastBackproject Core Gui Widgets)
+target_link_libraries(LibRayCastBackproject
+	PUBLIC
+		LibProjectiveGeometry
+		LibUtilsCuda
+		LibUtilsQt
+		GetSet
+		Qt6::Core
+		Qt6::Gui
+		Qt6::Widgets
+)
 set_property(TARGET LibRayCastBackproject PROPERTY FOLDER "Packages") 
 
 install(FILES VolumeRendering.h DESTINATION include/LibRayCastBackproject)

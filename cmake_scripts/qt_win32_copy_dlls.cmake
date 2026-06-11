@@ -1,7 +1,10 @@
-function(qt5_win32_copy_dlls APP)
+function(qt_win32_copy_dlls APP)
+
+	if(NOT WIN32)
+		return()
+	endif()
 
 	# if(CMAKE_BUILD_TYPE MATCHES RELEASE AND WIN32)
-
 
 		# get_target_property(QT5_QMAKE_EXECUTABLE Qt5::qmake IMPORTED_LOCATION)
 		# get_filename_component(QT5_WINDEPLOYQT_EXECUTABLE ${QT5_QMAKE_EXECUTABLE} PATH)
@@ -22,4 +25,4 @@ function(qt5_win32_copy_dlls APP)
 			   # COMMAND ${CMAKE_COMMAND} -E copy_if_different $<$<CONFIG:Debug>:${Qt5_${DLL}LocationDebug}> $<$<NOT:$<CONFIG:Debug>>:${Qt5_${DLL}Location}> $<TARGET_FILE_DIR:${APP}>)
 	# endforeach(DLL)
 
-endfunction(qt5_win32_copy_dlls)
+endfunction(qt_win32_copy_dlls)

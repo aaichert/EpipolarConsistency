@@ -1,0 +1,46 @@
+# Build and install directories
+build/
+install/
+export/
+bin/
+lib/
+
+# IDE files
+.vscode/
+.idea/
+*.user
+*.suo
+*.userossc
+*.sln
+*.vcxproj
+*.filters
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+CMakeSettings.json
+cmake_install.cmake
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.gch
+*.pch
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries and Executables
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.la
+*.lai
+*.exe
+*.out
+*.app

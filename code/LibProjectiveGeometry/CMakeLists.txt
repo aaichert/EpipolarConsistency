@@ -31,6 +31,7 @@ add_library(LibProjectiveGeometry
 	# Obsolete alternative Parametrization of a projection matrix.
 	Models/ModelFDCTCalibrationCorrection.hxx
 )
+target_link_libraries(LibProjectiveGeometry PUBLIC Eigen3::Eigen)
 install(FILES EigenToStr.hxx ProjectiveGeometry.hxx ProjectionMatrix.h SingularValueDecomposition.h CameraOpenGL.hxx GeometryVisualization.hxx DESTINATION include/LibProjectiveGeometry)
 install(FILES Models/ModelFDCTCalibrationCorrection.hxx Models/ModelCameraSimilarity2D3D.hxx Models/ModelSimilarity2D.hxx Models/ModelHomography2D.hxx Models/ModelSimilarity3D.hxx Models/ModelHomography3D.hxx Models/ModelTrajectoryIEC61217.hxx DESTINATION include/LibProjectiveGeometry/Models)
 install(TARGETS LibProjectiveGeometry DESTINATION lib EXPORT LibProjectiveGeometry-targets)

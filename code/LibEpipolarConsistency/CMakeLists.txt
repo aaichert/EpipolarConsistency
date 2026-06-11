@@ -1,34 +1,23 @@
 
 # A library to evaluate a metric of epipolar consistency
-cuda_add_library(LibEpipolarConsistency
-	# Common methods for ECC direct and with Radon intermediate
+add_library(LibEpipolarConsistency
 	EpipolarConsistency.h
 	EpipolarConsistency.cpp
-	# Some epipolar geometry functions which are needed in any case.
 	EpipolarConsistencyCommon.hxx
-	# Extract redundant signals directly from images
-	# This version is useful when ECC metric is computed only once
-	# or when the images are subject to change during optimization.
 	EpipolarConsistencyDirect.h
 	EpipolarConsistencyDirect.cpp
 	EpipolarConsistencyDirect.cu
-	# Compute pairwise fan-beam cc via rectification.
 	RectifiedFBCC.h
-	# Actual rectification (used only for visualization)
 	Rectification.cu
-	# Extract redundant samples from Radon intermediate functions of images.
-	# This Version requires the Radon transform to be pre-computed. It is able to
-	# quickly evaluate the ECC metric if only projection matrices are changed.
 	EpipolarConsistencyRadonIntermediate.h
 	EpipolarConsistencyRadonIntermediate.cpp
 	EpipolarConsistencyRadonIntermediate.cu
-	# The Radon intermediate functions is the expensive pre-computation.
 	RadonIntermediate.h
 	RadonIntermediate.cpp
 	RadonIntermediate.cu
-	OPTIONS -DHAS_CUDA="Cuda Support"
 )
-target_link_libraries(LibEpipolarConsistency LibProjectiveGeometry LibUtilsCuda ${CUDA_CUFFT_LIBRARIES} )
+target_compile_definitions(LibEpipolarConsistency PRIVATE HAS_CUDA="Cuda Support")
+target_link_libraries(LibEpipolarConsistency PRIVATE LibProjectiveGeometry LibUtilsCuda CUDA::cufft)
 install(FILES EpipolarConsistencyCommon.hxx EpipolarConsistency.h EpipolarConsistencyDirect.h RectifiedFBCC.h RadonIntermediate.h EpipolarConsistencyRadonIntermediate.h DESTINATION include/LibEpipolarConsistency)
 install(TARGETS LibEpipolarConsistency DESTINATION lib EXPORT LibEpipolarConsistency-targets)
 install(EXPORT LibEpipolarConsistency-targets DESTINATION cmake)
@@ -60,7 +49,7 @@ add_library(LibEpipolarConsistencyGui
 	# (Inefficiant but simple) implementation of ECC motion correction in FDCT
 	Gui/FDCTMotionCorrection.hxx
 )
-target_link_libraries(LibEpipolarConsistencyGui LibEpipolarConsistency LibProjectiveGeometry LibUtilsQt GetSet GetSetGui)
+target_link_libraries(LibEpipolarConsistencyGui LibEpipolarConsistency LibUtilsCuda LibProjectiveGeometry LibUtilsQt GetSet GetSetGui)
 install(FILES Gui/PreProccess.h Gui/ComputeRadonIntermediate.hxx Gui/Visualization.h Gui/DisplayGeometry.hxx Gui/SingleImageMotion.hxx Gui/FDCTMotionCorrection.hxx DESTINATION include/LibEpipolarConsistency/Gui)
 install(TARGETS LibEpipolarConsistencyGui DESTINATION lib EXPORT LibEpipolarConsistencyGui-targets)
 install(EXPORT LibEpipolarConsistencyGui-targets DESTINATION cmake)

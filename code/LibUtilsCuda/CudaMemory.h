@@ -60,7 +60,7 @@ namespace UtilsCuda
 		operator T*() const {return ptr_d;}
 
 		/// Mimic pointer behavior: Test for validity
-		bool operator!() const {return n<=0||ptr_d<=0;}
+		bool operator!() const {return n<=0||!ptr_d;}
 
 		/// What is the size of this block?
 		int size() const { return n; }

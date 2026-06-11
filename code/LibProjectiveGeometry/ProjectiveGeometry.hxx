@@ -4,6 +4,7 @@
 // Types for projective two- and three-space including join and meet operations for points, lines and planes.
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include <limits>
 
@@ -15,7 +16,7 @@ namespace Geometry
 	typedef Eigen::Vector3d           RP2Point;            // Homogeneous coordinates of a real 2D point.
 	typedef Eigen::Vector3d           RP2Line;             // Real 2D line (a,b,c) of points (x,y) with ax+by+c=0.
 	typedef Eigen::Vector4d           RP3Point;            // Homogeneous coordinates of a real 3D point.
-	typedef Eigen::Matrix<double,6,1> RP3Line;             // Plücker coordinates of a 3D line. 
+	typedef Eigen::Matrix<double,6,1> RP3Line;             // PlÃ¼cker coordinates of a 3D line. 
 	typedef Eigen::Vector4d           RP3Plane;            // Plane (a,b,c,d) of points (x,y,z) with ax+by+cz+d=0.
 	typedef Eigen::Matrix3d           RP2Homography;       // Projective transformation of real projective two-space.
 	typedef Eigen::Matrix4d           RP3Homography;       // Projective transformation of real projective three-space.
@@ -281,7 +282,7 @@ namespace Geometry
 	// Pluecker Matrices
 	////////////////////
 	
-	/// Anti-symmetric matrix for the join operation using dual Plücker coordinates
+	/// Anti-symmetric matrix for the join operation using dual PlÃ¼cker coordinates
 	inline Eigen::Matrix4d plueckerMatrixDual(const RP3Line& L)
 	{
 		Eigen::Matrix4d B;
@@ -293,7 +294,7 @@ namespace Geometry
 		return B;
 	}
 
-	/// Anti-symmetric matrix for the meet operation dual Plücker coordinates
+	/// Anti-symmetric matrix for the meet operation dual PlÃ¼cker coordinates
 	inline Eigen::Matrix4d plueckerMatrix(const RP3Line& L)
 	{
 		Eigen::Matrix4d B;
@@ -309,7 +310,7 @@ namespace Geometry
 	// Projections
 	////////////////////
 
-	/// Sturm-style projection matrix for Plücker lines. Projectoin from Plücker coordinates directly to 2D lines.
+	/// Sturm-style projection matrix for PlÃ¼cker lines. Projectoin from PlÃ¼cker coordinates directly to 2D lines.
 	inline Eigen::Matrix<double,6,1> pluecker_projection_matrix(const ProjectionMatrix& P)
 	{
 		Eigen::Matrix<double,6,1> PL;
@@ -320,7 +321,7 @@ namespace Geometry
 		return PL;
 	}
 	
-	/// Directly project 3D line in Plücker coordinates to 2D line.
+	/// Directly project 3D line in PlÃ¼cker coordinates to 2D line.
 	inline RP2Line pluecker_project(const RP3Line& L, const ProjectionMatrix& P)
 	{
 		return RP2Line(
@@ -517,7 +518,7 @@ namespace Geometry
 	// Utilities (metric)
 	/////////////////////////
 
-	/// Compute angle relative to zero-plane E0 and 90° plane E1. Input assumed to be in HNF.
+	/// Compute angle relative to zero-plane E0 and 90Â° plane E1. Input assumed to be in HNF.
 	inline double plane_angle_in_pencil(const RP3Plane& E, const RP3Plane& E0, const RP3Plane& E90)
 	{
 		double sina=E.head(3).dot(E90.head(3));

@@ -14,8 +14,19 @@ add_library( LibUtilsQt
 	QCustomPlot.h
 	QCustomPlot.cpp
 )
-qt5_use_modules(LibUtilsQt OpenGL PrintSupport)
-target_link_libraries(LibUtilsQt LibProjectiveGeometry GetSet GetSetGui ${OPENGL_LIBRARIES})
+target_link_libraries(LibUtilsQt
+	PUBLIC
+		LibProjectiveGeometry
+		GetSet
+		GetSetGui
+		Qt6::Core
+		Qt6::Gui
+		Qt6::Widgets
+		Qt6::PrintSupport
+		Qt6::OpenGL
+		Qt6::OpenGLWidgets
+		OpenGL::GL
+)
 install(TARGETS LibUtilsQt DESTINATION lib EXPORT LibUtilsQt-targets)
 install(EXPORT LibUtilsQt-targets DESTINATION cmake)
 set_property(TARGET LibUtilsQt PROPERTY FOLDER "Packages") 

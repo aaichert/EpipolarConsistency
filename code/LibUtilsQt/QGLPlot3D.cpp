@@ -25,7 +25,7 @@ namespace UtilsQt {
 	}
 
 	QGLPlot3D::QGLPlot3D(QWidget* parent) :
-	QGLWidget(parent),
+	QOpenGLWidget(parent),
 	m_data(0x0),
 	m_normals(0x0),
 	m_optBig(0),m_optMovingLight(0),
@@ -39,7 +39,7 @@ namespace UtilsQt {
 	}
 
 	QGLPlot3D::QGLPlot3D(const std::string& path, QWidget* parent) :
-	QGLWidget(parent),
+	QOpenGLWidget(parent),
 	m_data(0x0),
 	m_normals(0x0),
 	m_optBig(0),m_optMovingLight(0),
@@ -52,7 +52,7 @@ namespace UtilsQt {
 	}
 
 	QGLPlot3D::QGLPlot3D(int size, float* data, QWidget* parent):
-	QGLWidget(parent),
+	QOpenGLWidget(parent),
 	m_data(0x0),
 	m_normals(0x0),
 	m_optGrid(1),
@@ -79,7 +79,7 @@ namespace UtilsQt {
 	}
 
 	QGLPlot3D::QGLPlot3D(int w, int h, float* data, double minx, double maxx, double miny, double maxy, QWidget* parent):
-	QGLWidget(parent),
+	QOpenGLWidget(parent),
 	m_data(0x0),
 	m_normals(0x0),
 	m_optGrid(1),
@@ -454,6 +454,11 @@ namespace UtilsQt {
 		glEnd();
 	}
 
+	void QGLPlot3D::renderText(double x, double y, double z, const QString& txt, const QFont& f)
+	{
+		m_textItems.push_back({x, y, z, txt, f});
+	}
+
 	void QGLPlot3D::renderOffsetText(double x, double y, double z, const std::string& txt, const QFont& f)
 	{
 		double factor=0.016;
@@ -528,6 +533,7 @@ namespace UtilsQt {
 
 	void QGLPlot3D::paintGL()
 	{
+		m_textItems.clear();
 		int i, j;
 		if (m_optBig)
 			glClearColor(1.0f,1.0f,1.0f,1.0f);
@@ -661,13 +667,44 @@ namespace UtilsQt {
 		drawPlaneZ(m_isoLevel);
 		glDisable(GL_BLEND);
 
+		if (!m_textItems.empty()) {
+			QPainter painter(this);
+			GLdouble modelview[16];
+			GLdouble projection[16];
+			GLint viewport[4];
+			glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+			glGetDoublev(GL_PROJECTION_MATRIX, projection);
+			glGetIntegerv(GL_VIEWPORT, viewport);
+
+			for (const auto& item : m_textItems) {
+				double in[4] = {item.x, item.y, item.z, 1.0};
+				double out[4];
+				for (int i = 0; i < 4; ++i) {
+					out[i] = modelview[i] * in[0] + modelview[i+4] * in[1] + modelview[i+8] * in[2] + modelview[i+12] * in[3];
+				}
+				double out2[4];
+				for (int i = 0; i < 4; ++i) {
+					out2[i] = projection[i] * out[0] + projection[i+4] * out[1] + projection[i+8] * out[2] + projection[i+12] * out[3];
+				}
+				if (out2[3] == 0.0) continue;
+				out2[0] /= out2[3];
+				out2[1] /= out2[3];
+
+				double winx = viewport[0] + (1.0 + out2[0]) * viewport[2] / 2.0;
+				double winy = viewport[1] + (1.0 - out2[1]) * viewport[3] / 2.0;
+
+				painter.setFont(item.font);
+				painter.setPen(Qt::black);
+				painter.drawText(winx, winy, item.text);
+			}
+		}
 	}
 
 	void QGLPlot3D::mouseMoveEvent(QMouseEvent *event) {
-		double dx = event->x() - m_mouse_drag[0];
-		double dy = event->y() - m_mouse_drag[1];
-		m_mouse_drag[0] = event->x();
-		m_mouse_drag[1] = event->y();
+		double dx = (double)event->position().x() - m_mouse_drag[0];
+		double dy = (double)event->position().y() - m_mouse_drag[1];
+		m_mouse_drag[0] = (double)event->position().x();
+		m_mouse_drag[1] = (double)event->position().y();
 
 		if (event->buttons()&Qt::LeftButton)
 		{
@@ -680,16 +717,16 @@ namespace UtilsQt {
 				m_view[0]=-1.5;
 			if (m_view[1]<0) m_view[1]+=6.28318531;
 			if (m_view[1]>6.28318531) m_view[1]-=6.28318531;
-			updateGL();
+			update();
 		}
 	}
 
 	void QGLPlot3D::wheelEvent(QWheelEvent *event)
 	{
-		m_view[2]-=event->delta()*0.005;
+		m_view[2]-=event->angleDelta().y()*0.005;
 		if (m_view[2]<1)
 			m_view[2]=1;
-		updateGL();
+		update();
 	}
 
 	void QGLPlot3D::keyPressEvent(QKeyEvent *event) {
@@ -782,7 +819,7 @@ namespace UtilsQt {
 		}
 
 		if (key=='X')
-			this->grabFrameBuffer().save(QFileDialog::getSaveFileName(this,"Export Image File",".", "Portable Network Graphis (*.png);;JPEG (*jpg);;All Files (*)"));
+			this->grabFramebuffer().save(QFileDialog::getSaveFileName(this,"Export Image File",".", "Portable Network Graphis (*.png);;JPEG (*jpg);;All Files (*)"));
 
 		if (key=='H')
 		{
@@ -831,12 +868,12 @@ namespace UtilsQt {
 			{
 				m_view[1]=oldview+(double)i/n*r;
 				if (m_view[1]>6.28318531) m_view[1]-=6.28318531;
-				QPixmap::grabWidget(this,this->rect()).save((std::string("plotRot")+toString(1000+i)+".png").c_str());
+				this->grab().save((std::string("plotRot")+toString(1000+i)+".png").c_str());
 			}
 			m_view[1]=oldview;
 		}
 
-		updateGL();
+		update();
 	}
 
 	const float QGLPlot3D::LightSource[] = {0.5f, 5.0f, -5.0f, 0.0f};

@@ -1,5 +1,4 @@
-# We need cmake version 3.2.2 or higher
-cmake_minimum_required(VERSION 3.2.2)
+cmake_minimum_required(VERSION 3.16)
 
 ############################################################
 # Epipolar Consistency Conditions in X-ray imaging.
@@ -8,8 +7,7 @@ cmake_minimum_required(VERSION 3.2.2)
 # Friedrich-Alexander Universität Erlangen-Nürnberg
 ############################################################
 
-# Create a new solution
-project(EpipolarConsistency)
+project(EpipolarConsistency VERSION 1.2.2 LANGUAGES C CXX CUDA)
 
 # The current version
 set(ECC_LIBRARY_VERSION 1 2 2)
@@ -26,76 +24,65 @@ endif()
 # Some default settings
 ########################
 
-# Tell CMake to install binaries and exports locally
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set (CMAKE_INSTALL_PREFIX "../export" CACHE PATH "Default install path" FORCE )
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../export" CACHE PATH "Default install path" FORCE)
 endif()
 
-# Distinguish debug/realse binaries. And nothing else.
-set(CMAKE_DEBUG_POSTFIX "d")
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "limited configs" FORCE)
-
-# Shall dynamic or static linkage be the default?
 option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
 
-# Let MSVC export all symbols by default and create output in bin dir
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Enable parallel compilation on MSVC
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-    message(STATUS "Added parallel build arguments to CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-	# Allows solutions to be placed in certain folders
-	set_property( GLOBAL PROPERTY USE_FOLDERS ON)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+    add_compile_options(/MP)
 endif()
 
-# I'd rather use current standards
-set (CMAKE_CXX_STANDARD 11)
-if(CMAKE_COMPILER_IS_GNUCXX)
-    add_definitions(-std=c++11)
-    # and a console window under windows
-    if (WIN32)
-        add_definitions(-mconsole)
-    endif()
+if(MSVC AND CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "limited configs" FORCE)
 endif()
 
 ####################
 # External Packages
 ####################
 
-# Add OpenMP
 find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+if(OpenMP_CXX_FOUND)
+    set(OPENMP_LIBS OpenMP::OpenMP_CXX)
 endif()
 
-# Add Eigen
-set(EIGEN3_INCLUDE_PATH "/usr/include/eigen3" CACHE PATH "Full path to Eigen3")
-include_directories(${EIGEN3_INCLUDE_PATH})
-
-# Add NLopt optimizers
-find_package(NLopt REQUIRED)
-#set(NLOPT_LIBRARY "/usr/lib/x86_64-linux-gnu/libnlopt.so" CACHE FILEPATH  "Full path to nlopt.lib")
-#set(NLOPT_INCLUDE_PATH "/usr/include" CACHE PATH "Directory containing nlopt.h/hpp")
-include_directories(${NLOPT_INCLUDE_DIRS})
-
-# Add CUDA
-include(cmake_scripts/findAndTestCUDA.cmake)
-
-# Add Qt5
-find_package(Qt5Widgets)
-find_package(OpenGL)
-find_package(Qt5OpenGL)
+# Enable automatic processing of Qt files
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-include(cmake_scripts/qt5_win32_copy_dlls.cmake)
 
-# Add GetSet
-find_package(GetSet REQUIRED)
-include_directories(${GetSet_INCLUDE_DIRS})
+find_package(Eigen3 REQUIRED NO_MODULE)
+find_package(NLopt REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport OpenGLWidgets OpenGL)
+
+find_package(GetSet CONFIG QUIET)
+if(NOT TARGET GetSet)
+    add_library(GetSet INTERFACE IMPORTED)
+endif()
+if(NOT TARGET GetSetGui)
+    add_library(GetSetGui INTERFACE IMPORTED)
+endif()
+
+# Ensure include directories are populated for GetSet targets
+if(TARGET GetSet AND EXISTS "${GetSet_DIR}/include")
+    target_include_directories(GetSet INTERFACE "${GetSet_DIR}/include")
+endif()
+if(TARGET GetSetGui AND EXISTS "${GetSet_DIR}/include")
+    target_include_directories(GetSetGui INTERFACE "${GetSet_DIR}/include")
+endif()
+
+include(cmake_scripts/findAndTestCUDA.cmake)
+include(cmake_scripts/qt_win32_copy_dlls.cmake)
 
 ########################
 # Libraries "./code"
@@ -123,21 +110,21 @@ add_subproject(nrrdView                      "tools" ON)
 add_subproject(TrajectoryView                "tools" ON)
 add_subproject(VolumeRendering               "tools" ON)
 
-add_subproject(VisualizeECC                  "tools" OFF)
+add_subproject(VisualizeECC                  "tools" ON)
 add_subproject(Registration                  "tools" OFF)
-add_subproject(FluoroTracking                "tools" ON)
+add_subproject(FluoroTracking                "tools" OFF)
 
 add_subproject(projtable2ompl                "tools" OFF)
 add_subproject(ComputeRadonIntermediate      "tools" OFF)
 
 # temporarily:
-add_package(LibSimple           "code"  0 0 1)
+# add_package(LibSimple           "code"  0 0 1)
 add_subproject(Registration2D3D              "tools" OFF)
-add_subproject(FDCTCalibrationCorrection     "tools" ON)
-add_subproject(FDCTMotionCorrection          "tools" ON)
+add_subproject(FDCTCalibrationCorrection     "tools" OFF)
+add_subproject(FDCTMotionCorrection          "tools" OFF)
 
 # Sandbox
-# add_subproject(ConsistencyDemo               "tools" OFF)
+add_subproject(ConsistencyDemo               "tools" ON)
 
 
 # move to deprecated

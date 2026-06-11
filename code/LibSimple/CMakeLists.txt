@@ -2,6 +2,7 @@
 add_library(GLAD
 	GL/glad.c
 )
+set_source_files_properties(GL/glad.c PROPERTIES LANGUAGE C)
 target_compile_definitions(GLAD PUBLIC GLAD_GLAPI_EXPORT PRIVATE GLAD_GLAPI_EXPORT_BUILD)
 
 add_library(LibSimple
@@ -19,5 +20,4 @@ add_library(LibSimple
 	SimpleRayCastPass.h
 	SimpleRayCastPass.cpp
 )
-target_link_libraries(LibSimple GLAD)
-qt5_use_modules(LibSimple Widgets OpenGL)
+target_link_libraries(LibSimple PRIVATE GLAD Qt6::Widgets Qt6::OpenGL Qt6::OpenGLWidgets)

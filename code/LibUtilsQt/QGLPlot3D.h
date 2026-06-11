@@ -1,14 +1,18 @@
-// Created by Andre Aichert <aaichert@gmail.com> in 2011
 #ifndef QGLPLOT3D_H
 #define QGLPLOT3D_H
 
-#include <QtOpenGL/QGLWidget>
-
-#include <string>
+#include <vector>
+#include <QPainter>
+#include <QFont>
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <QKeyEvent>
+#include <GL/gl.h>
 
 namespace UtilsQt {
 
-	class QGLPlot3D : public QGLWidget {
+	class QGLPlot3D : public QOpenGLWidget {
 	public:
 		QGLPlot3D(QWidget* parent=0x0);
 		QGLPlot3D(const std::string& path, QWidget* parent=0x0);
@@ -25,7 +29,16 @@ namespace UtilsQt {
 		bool load(const std::string& path);
 
 	protected:
-			/// Set the data to plot, takes ownership of data;
+		struct TextItem {
+			double x, y, z;
+			QString text;
+			QFont font;
+		};
+		std::vector<TextItem> m_textItems;
+
+		void renderText(double x, double y, double z, const QString& txt, const QFont& f = QFont());
+
+		/// Set the data to plot, takes ownership of data;
 		void setData(int size, float *data);
 
 		void initializeGL();
