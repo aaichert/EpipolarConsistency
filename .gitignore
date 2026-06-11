@@ -4,6 +4,7 @@ install/
 export/
 bin/
 lib/
+*.log
 
 # IDE files
 .vscode/
