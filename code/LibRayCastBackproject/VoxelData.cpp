@@ -123,6 +123,7 @@ namespace VolumeRendering {
 	}
 	
 	SimpleBinningESS::SimpleBinningESS(UtilsCuda::BindlessTexture3D<float>& volume, int _bin_size)
+		: bin_size(_bin_size)
 	{
 		minmaxBinning(volume.size[0],volume.size[1],volume.size[2],volume,bin_size, &voxel_data_binned_minmax, value_min, value_max);
 	}

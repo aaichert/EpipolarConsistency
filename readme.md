@@ -4,6 +4,8 @@
 
 This project provides a GPU implementation in C++/CUDA of the Epipolar Consistency Metric. It relies on the Eigen 3 library and follows the 2016 CT-Meeting paper *"Efficient Epipolar Consistency"* by Aichert et al.
 
+Please note that there is also a python-wrapped version of the ECC CUDA implementation in [aaichert/xray-epipolar-consistency](https://github.com/aaichert/xray-epipolar-consistency). It also contains a newer and more generic implementation of both FDTCMotionCorrection and FDCTCalibrationCorrection which still use the GPU for cost function evaluation.
+
 ---
 
 ## Prerequisites
