@@ -45,3 +45,8 @@ cmake_install.cmake
 *.exe
 *.out
 *.app
+
+# Local config and temp files
+/*.ini
+/*.txt
+

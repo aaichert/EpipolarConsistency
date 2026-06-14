@@ -209,6 +209,7 @@ void gui(const GetSetInternal::Node& node)
 		projection_stack.meta_info["Transfer Function Ramp/Scale"]=GetSet<double>("Volume Rendering/Transfer Function Ramp/Scale").getString();
 
 		// Set up raycaster
+		g_busy=true;
 		g_app.progressStart("Export 3D Sinogram...","Setting up raycaster...");
 		VolumeRendering::Raycaster drr(*g_voxel_data);
 		drr.setSamplesPerVoxel(spv);
@@ -245,6 +246,8 @@ void gui(const GetSetInternal::Node& node)
 				toString((int)(time.getElapsedTime()*1000))+"ms"+
 				"(est. time remaining: "+toString<int>(time.getTotalTime()/pct_done*(1.0-pct_done))+"sec)");
 		}
+		g_busy=false;
+		g_app.ignoreNotifications(false);
 		if (!cancelled)
 		{
 			// Save result
